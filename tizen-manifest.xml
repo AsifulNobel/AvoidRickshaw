@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<manifest xmlns="http://tizen.org/ns/packages" api-version="2.3" package="org.example.avoidrickshaw" version="1.0.0">
+    <profile name="mobile"/>
+    <ui-application appid="org.example.avoidrickshaw" exec="avoidrickshaw" multiple="false" nodisplay="false" taskmanage="true" type="capp">
+        <label>avoidrickshaw</label>
+        <icon>avoidrickshaw.png</icon>
+    </ui-application>
+    <privileges>
+        <privilege>http://tizen.org/privilege/location</privilege>
+    </privileges>
+</manifest>

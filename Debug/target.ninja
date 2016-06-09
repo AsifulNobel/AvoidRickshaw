@@ -1,0 +1,4 @@
+build main_build: phony avoidrickshaw
+build all: phony main_build
+default all
+edje-cc-options = -deps
