@@ -64,7 +64,7 @@ static void state_changed_cb(location_service_state_e state, void *user_data)  /
     service_state = state;
 }
 
-static void position_updated_cb(double flatitude, double flongitude, double faltitude, time_t ftimestamp, void *user_data)                                    //Update position after 2 second interval
+static void position_updated_cb(double flatitude, double flongitude, double faltitude, time_t ftimestamp, void *user_data)
 {
 
     char latitude_string[100];
@@ -104,7 +104,7 @@ void view1_button1_onpressed(uib_view1_view_context *viewContext, Evas_Object *o
 
 		dlog_print(DLOG_DEBUG,Log_Tag,"Status: %d", status);
 
-		location_manager_set_position_updated_cb(manager, position_updated_cb, 3, NULL);
+		location_manager_set_position_updated_cb(manager, position_updated_cb, 10, NULL);
 
 		location_manager_start(manager);
 
