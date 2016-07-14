@@ -1,0 +1,245 @@
+#include "../../inc/view_defines.h"
+
+collections {
+   group { name: GRP_MAIN;
+      parts {
+         part {
+            name: PART_BG_SPACER;
+            type: SPACER;
+            description {
+               state: "default" 0.0;
+               align: 0.0 0.0;
+               rel1 {
+                  relative: 0.0 0.0;
+               }
+               rel2 {
+                  relative: 1.0 1.0;
+               }
+            }
+         }
+         part {
+            name: PART_GPS_STATUS;
+            type: TEXT;
+            mouse_events: 0;
+            description {
+               state: "default" 0.0;
+               align: 0.0 0.0;
+               rel1 {
+                  relative: PART_GPS_STATUS_X_REL PART_GPS_STATUS_Y_REL;
+                  to: PART_BG_SPACER;
+               }
+               rel2 {
+                  relative: PART_GPS_STATUS_X_REL PART_GPS_STATUS_Y_REL;
+                  to: PART_BG_SPACER;
+               }
+               text {
+                  font: "Tizen:style=regular";
+                  size: 25;
+                  min: 1 1;
+                  ellipsis: -1;
+               }
+               color: 0 0 0 255;
+            }
+         }
+         part {
+            name: PART_STEPS_HEADER;
+            type: TEXT;
+            mouse_events: 0;
+            description {
+               state: "default" 0.0;
+               align: 0.5 0.0;
+               rel1 {
+                  relative: 0.0 PART_STEPS_HEADER_Y_REL;
+                  to: PART_BG_SPACER;
+               }
+               rel2 {
+                  relative: 1.0 PART_STEPS_HEADER_Y_REL+PART_HEADER_HEIGHT_REL;
+                  to: PART_BG_SPACER;
+               }
+               text {
+                  font: "Tizen:style=regular";
+                  size: 40;
+                  min: 1 1;
+                  ellipsis: -1;
+                  text: STEPS_HEADER_TEXT;
+               }
+               color: 0 0 0 255;
+            }
+         }
+         part {
+            name: PART_STEPS_TEXT;
+            type: TEXT;
+            mouse_events: 0;
+            description {
+               state: "default" 0.0;
+               align: 0.5 0.0;
+               rel1 {
+                  relative: 0.0 PART_STEPS_TEXT_Y_REL;
+                  to: PART_BG_SPACER;
+               }
+               rel2 {
+                  relative: 1.0 PART_STEPS_TEXT_Y_REL+PART_TEXT_HEIGHT_REL;
+                  to: PART_BG_SPACER;
+               }
+               text {
+                  font: "Tizen:style=regular";
+                  size: 60;
+                  min: 1 1;
+                  ellipsis: -1;
+               }
+               color: TEXT_COLOR_R TEXT_COLOR_G TEXT_COLOR_B TEXT_COLOR_A;
+            }
+         }
+        
+         part {
+            name: PART_DISTANCE_HEADER;
+            type: TEXT;
+            mouse_events: 0;
+            description {
+               state: "default" 0.0;
+               align: 0.5 0.0;
+               rel1 {
+                  relative: 0.0 PART_DISTANCE_HEADER_Y_REL;
+                  to: PART_BG_SPACER;
+               }
+               rel2 {
+                  relative: 1.0 PART_DISTANCE_HEADER_Y_REL+PART_HEADER_HEIGHT_REL;
+                  to: PART_BG_SPACER;
+               }
+               text {
+                  font: "Tizen:style=regular";
+                  size: 40;
+                  min: 1 1;
+                  ellipsis: -1;
+                  text: DISTANCE_HEADER_TEXT;
+               }
+               color: 0 0 0 255;
+            }
+         }
+         part {
+            name: PART_DISTANCE_TEXT;
+            type: TEXT;
+            mouse_events: 0;
+            description {
+               state: "default" 0.0;
+               align: 0.5 0.0;
+               rel1 {
+                  relative: 0.0 PART_DISTANCE_TEXT_Y_REL;
+                  to: PART_BG_SPACER;
+               }
+               rel2 {
+                  relative: 1.0 PART_DISTANCE_TEXT_Y_REL+PART_TEXT_HEIGHT_REL;
+                  to: PART_BG_SPACER;
+               }
+               text {
+                  font: "Tizen:style=regular";
+                  size: 60;
+                  min: 1 1;
+                  ellipsis: -1;
+               }
+               color: TEXT_COLOR_R TEXT_COLOR_G TEXT_COLOR_B TEXT_COLOR_A;
+            }
+         }
+         
+         part {
+            name: PART_FARE_HEADER;
+            type: TEXT;
+            mouse_events: 0;
+            description {
+               state: "default" 0.0;
+               align: 0.5 0.0;
+               rel1 {
+                  relative: 0.0 PART_FARE_HEADER_Y_REL;
+                  to: PART_BG_SPACER;
+               }
+               rel2 {
+                  relative: 1.0 PART_FARE_HEADER_Y_REL+PART_HEADER_HEIGHT_REL;
+                  to: PART_BG_SPACER;
+               }
+               text {
+                  font: "Tizen:style=regular";
+                  size: 40;
+                  min: 1 1;
+                  ellipsis: -1;
+                  text: FARE_HEADER_TEXT;
+               }
+               color: 0 0 0 255;
+            }
+         }
+         part {
+            name: PART_FARE_TEXT;
+            type: TEXT;
+            mouse_events: 0;
+            description {
+               state: "default" 0.0;
+               align: 0.5 0.0;
+               rel1 {
+                  relative: 0.0 PART_FARE_TEXT_Y_REL;
+                  to: PART_BG_SPACER;
+               }
+               rel2 {
+                  relative: 1.0 PART_FARE_TEXT_Y_REL+PART_TEXT_HEIGHT_REL;
+                  to: PART_BG_SPACER;
+               }
+               text {
+                  font: "Tizen:style=regular";
+                  size: 60;
+                  min: 1 1;
+                  ellipsis: -1;
+               }
+               color: TEXT_COLOR_R TEXT_COLOR_G TEXT_COLOR_B TEXT_COLOR_A;
+            }
+         }
+         
+         part {
+            name: PART_SHOW_HISTORY_BTN;
+            type: SWALLOW;
+            description {
+               state: "default" 0.0;
+               align: 0.0 1.0;
+               rel1 {
+                  relative: 0.1 0.8;
+                  to: PART_BG_SPACER;
+               }
+               rel2 {
+                  relative: 0.9 0.87;
+                  to: PART_BG_SPACER;
+               }
+            }
+         }
+                           
+         part {
+            name: PART_START_BTN;
+            type: SWALLOW;
+            description {
+               state: "default" 0.0;
+               align: 1.0 1.0;
+               rel1 {
+                  relative: PART_START_BTN_X_REL1 PART_START_BTN_Y_REL1;
+                  to: PART_BG_SPACER;
+               }
+               rel2 {
+                  relative: PART_START_BTN_X_REL2 PART_START_BTN_Y_REL2;
+                  to: PART_BG_SPACER;
+               }
+            }
+         }
+         part {
+            name: PART_STOP_BTN;
+            type: SWALLOW;
+            description {
+               state: "default" 0.0;
+               align: 0.0 1.0;
+               rel1 {
+                  relative: 0.55 0.9;
+                  to: PART_BG_SPACER;
+               }
+               rel2 {
+                  relative: 0.9 0.97;
+                  to: PART_BG_SPACER;
+               }
+            }
+         }
+      }
+   }
+}
