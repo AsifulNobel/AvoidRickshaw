@@ -164,18 +164,30 @@ bool data_gps_enabled_get(void)
  * fare, total fare is updated in view.
  */
 int count_fare(void) {
+	int baseFare = 10;
+	int farePerUnitDistance = 5;
 	int fare;
-	double tmp = s_info.total_distance / 400.0;
 
-	if (tmp > 10.0) {
-		fare = (int) tmp*2.5;
-	}
-	else if (tmp > 5.0) {
-		fare = (int) tmp*5.0;
-	}
-	else {
-		fare = (int) tmp*10.0;
-	}
+	double baseDistance = 1.0;
+
+	if (s_info.total_distance > 1.0)
+		fare = (int) baseFare + (s_info.total_distance - baseDistance) * farePerUnitDistance;
+	else
+		fare = 0.0;
+
+//	Dummy fare calculator logic
+//	int fare;
+//	double tmp = s_info.total_distance / 400.0;
+//
+//	if (tmp > 10.0) {
+//		fare = (int) tmp*2.5;
+//	}
+//	else if (tmp > 5.0) {
+//		fare = (int) tmp*5.0;
+//	}
+//	else {
+//		fare = (int) tmp*10.0;
+//	}
 
 	s_info.fare_count_changed_callback(fare);
 
@@ -453,11 +465,14 @@ void _data_save_db(void) {
 	msgdata->steps = s_info.steps_count;
 	msgdata->calories = s_info.calories;
 
-	int num_of_rows = 0;
-	ret = insertIntoDb(msgdata->distance, msgdata->steps, msgdata->calories, msgdata->fare);
+	if (msgdata->steps > 0 && msgdata->distance > 0)
+		ret = insertIntoDb(msgdata->distance, msgdata->steps, msgdata->calories, msgdata->fare);
+	else
+		return;
 
 	dlog_print(DLOG_DEBUG, LOG_TAG, "Saving session data in database...Status: %d", ret);
 
+	int num_of_rows = 0;
 	ret = getAllMsgFromDb(&msgdata, &num_of_rows);
 
 	dlog_print(DLOG_DEBUG, LOG_TAG, "Querying database...Status: %d", ret);

@@ -131,6 +131,7 @@ Evas_Object *view_create_layout(Evas_Object *parent)
 	elm_object_part_text_set(layout, PART_STEPS_TEXT, STEPS_0);
 	elm_object_part_text_set(layout, PART_DISTANCE_TEXT, NOT_AVAILABLE);
 	elm_object_part_text_set(layout, PART_FARE_TEXT, NOT_AVAILABLE);
+	elm_object_part_text_set(layout, PART_CALORIES_TEXT, NOT_AVAILABLE);
 
 	/* Initialize buttons */
 	start_button = _create_button(s_info.win, BTN_START_TEXT, _start_cb);

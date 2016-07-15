@@ -12,18 +12,22 @@
 #define PART_DISTANCE_TEXT "distance_text"
 #define PART_FARE_HEADER "fare_header"
 #define PART_FARE_TEXT "fare_text"
+#define PART_CALORIES_HEADER "calories_header"
+#define PART_CALORIES_TEXT "calories_text"
 #define PART_START_BTN "start_btn"
 #define PART_STOP_BTN "stop_btn"
 #define PART_SHOW_HISTORY_BTN "history_btn"
 
 #define PART_GPS_STATUS_X_REL 0.02
-#define PART_GPS_STATUS_Y_REL 0.01
+#define PART_GPS_STATUS_Y_REL 0.03
 #define PART_STEPS_HEADER_Y_REL 0.1
 #define PART_STEPS_TEXT_Y_REL 0.15
-#define PART_DISTANCE_HEADER_Y_REL 0.3
-#define PART_DISTANCE_TEXT_Y_REL 0.35
-#define PART_FARE_HEADER_Y_REL 0.5
-#define PART_FARE_TEXT_Y_REL 0.55
+#define PART_DISTANCE_HEADER_Y_REL 0.25
+#define PART_DISTANCE_TEXT_Y_REL 0.3
+#define PART_FARE_HEADER_Y_REL 0.4
+#define PART_FARE_TEXT_Y_REL 0.45
+#define PART_CALORIES_HEADER_Y_REL 0.55
+#define PART_CALORIES_TEXT_Y_REL 0.6
 
 #define PART_HEADER_HEIGHT_REL 0.05
 #define PART_TEXT_HEIGHT_REL 0.1
@@ -41,12 +45,13 @@
 #define STEPS_HEADER_TEXT "Steps in this session"
 #define DISTANCE_HEADER_TEXT "Total Distance (in meters)"
 #define FARE_HEADER_TEXT "Fare Saved"
+#define CALORIES_HEADER_TEXT "Calories Burnt"
 #define BTN_START_TEXT "Start"
 #define BTN_STOP_TEXT "Stop"
 #define BTN_HISTORY_TEXT "Show History (Log)"
 
 #define GPS_OK_TEXT "GPS OK"
-#define GPS_NOT_DETECTED "GPS not detected. Enable GPS, Wi-Fi and restart app"
+#define GPS_NOT_DETECTED "No GPS. Enable GPS, Wi-Fi and restart."
 #define STEPS_0 "0"
 #define NOT_AVAILABLE "N/A"
 

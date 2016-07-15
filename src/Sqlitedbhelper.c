@@ -9,7 +9,7 @@
 #include "avoidrickshaw.h"
 #include "Sqlitedbhelper.h"
 
-#define DB_NAME "sample.db"
+#define DB_NAME "avoidRickshaw.db"
 #define TABLE_NAME "infoTable"
 /***************/
 

@@ -1,7 +1,8 @@
 #include "../../inc/view_defines.h"
 
 collections {
-   group { name: GRP_MAIN;
+   group { 
+   name: GRP_MAIN;
       parts {
          part {
             name: PART_BG_SPACER;
@@ -192,6 +193,56 @@ collections {
          }
          
          part {
+            name: PART_CALORIES_HEADER;
+            type: TEXT;
+            mouse_events: 0;
+            description {
+               state: "default" 0.0;
+               align: 0.5 0.0;
+               rel1 {
+                  relative: 0.0 PART_CALORIES_HEADER_Y_REL;
+                  to: PART_BG_SPACER;
+               }
+               rel2 {
+                  relative: 1.0 PART_CALORIES_HEADER_Y_REL+PART_HEADER_HEIGHT_REL;
+                  to: PART_BG_SPACER;
+               }
+               text {
+                  font: "Tizen:style=regular";
+                  size: 40;
+                  min: 1 1;
+                  ellipsis: -1;
+                  text: CALORIES_HEADER_TEXT;
+               }
+               color: 0 0 0 255;
+            }
+         }
+         part {
+            name: PART_CALORIES_TEXT;
+            type: TEXT;
+            mouse_events: 0;
+            description {
+               state: "default" 0.0;
+               align: 0.5 0.0;
+               rel1 {
+                  relative: 0.0 PART_CALORIES_TEXT_Y_REL;
+                  to: PART_BG_SPACER;
+               }
+               rel2 {
+                  relative: 1.0 PART_CALORIES_TEXT_Y_REL+PART_TEXT_HEIGHT_REL;
+                  to: PART_BG_SPACER;
+               }
+               text {
+                  font: "Tizen:style=regular";
+                  size: 60;
+                  min: 1 1;
+                  ellipsis: -1;
+               }
+               color: TEXT_COLOR_R TEXT_COLOR_G TEXT_COLOR_B TEXT_COLOR_A;
+            }
+         }
+                  
+         part {
             name: PART_SHOW_HISTORY_BTN;
             type: SWALLOW;
             description {
@@ -207,7 +258,7 @@ collections {
                }
             }
          }
-                           
+                                   
          part {
             name: PART_START_BTN;
             type: SWALLOW;

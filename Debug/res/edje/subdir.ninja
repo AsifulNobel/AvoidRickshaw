@@ -1,0 +1,9 @@
+################################################################################
+# Automatically-generated file. Do not edit!
+################################################################################
+
+
+edctool = edje_cc
+edcflags = -id "/home/nobel/DevBox/tizen_workspace/AvoidRickshaw/edje/images" -id "/home/nobel/tizen-sdk/tools/enventor/share/enventor/images" -sd "/home/nobel/DevBox/tizen_workspace/AvoidRickshaw/edje/sounds" -sd "/home/nobel/tizen-sdk/tools/enventor/share/enventor/sounds" -fd "/home/nobel/DevBox/tizen_workspace/AvoidRickshaw/edje/fonts" -fd "/home/nobel/tizen-sdk/tools/enventor/share/enventor/fonts"
+
+build res/edje/main.edj: build_edc ../res/edje/main.edc 

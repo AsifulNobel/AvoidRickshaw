@@ -11,6 +11,7 @@ void view_set_gps_ok_text(bool gps_ok);
 void view_set_steps_count(int count);
 void view_set_total_distance(double distance);
 void view_set_fare(int fare);
+//void view_set_calories(double calories);
 void view_set_button_callbacks(view_button_clicked_callback_t start_button_clicked_cb,
 		view_button_clicked_callback_t stop_button_clicked_cb,
 		view_button_clicked_callback_t history_button_clicked_cb);
