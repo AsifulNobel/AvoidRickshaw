@@ -22,6 +22,7 @@ static bool app_create(void *user_data)
 	data_set_position_changed_callback(_on_position_changed_cb);
 	data_set_steps_count_changed_callback(view_set_steps_count);
 	data_set_fare_changed_callback(view_set_fare);
+	data_set_calorie_changed_callback(view_set_calories);
 
 	if (!data_initialize())
 		return false;

@@ -9,7 +9,7 @@
 #include "avoidrickshaw.h"
 #include "Sqlitedbhelper.h"
 
-#define DB_NAME "avoidRickshaw.db"
+#define DB_NAME "sample.db"
 #define TABLE_NAME "infoTable"
 /***************/
 
@@ -70,6 +70,7 @@ int initdb()
    dlog_print(DLOG_DEBUG, LOG_TAG, "create table query : %s", sql);
 
    ret = sqlite3_exec(avoidRickshawDb, sql, NULL, 0, &ErrMsg); /*execute query*/
+
    if(ret != SQLITE_OK)
    {
 	   dlog_print(DLOG_DEBUG, LOG_TAG, "Table Create Error! [%s]", ErrMsg);

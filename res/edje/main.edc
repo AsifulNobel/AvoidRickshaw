@@ -1,8 +1,7 @@
 #include "../../inc/view_defines.h"
-
 collections {
-   group { 
-   name: GRP_MAIN;
+   group {
+      name: GRP_MAIN;
       parts {
          part {
             name: PART_BG_SPACER;
@@ -35,7 +34,7 @@ collections {
                }
                text {
                   font: "Tizen:style=regular";
-                  size: 25;
+                  size: GPS_STATUS_FONT_SIZE;
                   min: 1 1;
                   ellipsis: -1;
                }
@@ -59,7 +58,7 @@ collections {
                }
                text {
                   font: "Tizen:style=regular";
-                  size: 40;
+                  size: HEADER_FONT_SIZE;
                   min: 1 1;
                   ellipsis: -1;
                   text: STEPS_HEADER_TEXT;
@@ -84,14 +83,13 @@ collections {
                }
                text {
                   font: "Tizen:style=regular";
-                  size: 60;
+                  size: TEXT_FONT_SIZE;
                   min: 1 1;
                   ellipsis: -1;
                }
                color: TEXT_COLOR_R TEXT_COLOR_G TEXT_COLOR_B TEXT_COLOR_A;
             }
          }
-        
          part {
             name: PART_DISTANCE_HEADER;
             type: TEXT;
@@ -109,7 +107,7 @@ collections {
                }
                text {
                   font: "Tizen:style=regular";
-                  size: 40;
+                  size: HEADER_FONT_SIZE;
                   min: 1 1;
                   ellipsis: -1;
                   text: DISTANCE_HEADER_TEXT;
@@ -134,21 +132,19 @@ collections {
                }
                text {
                   font: "Tizen:style=regular";
-                  size: 60;
+                  size: TEXT_FONT_SIZE;
                   min: 1 1;
                   ellipsis: -1;
                }
                color: TEXT_COLOR_R TEXT_COLOR_G TEXT_COLOR_B TEXT_COLOR_A;
             }
          }
-         
          part {
             name: PART_FARE_HEADER;
             type: TEXT;
             mouse_events: 0;
             description {
                state: "default" 0.0;
-               align: 0.5 0.0;
                rel1 {
                   relative: 0.0 PART_FARE_HEADER_Y_REL;
                   to: PART_BG_SPACER;
@@ -159,7 +155,7 @@ collections {
                }
                text {
                   font: "Tizen:style=regular";
-                  size: 40;
+                  size: HEADER_FONT_SIZE;
                   min: 1 1;
                   ellipsis: -1;
                   text: FARE_HEADER_TEXT;
@@ -173,7 +169,6 @@ collections {
             mouse_events: 0;
             description {
                state: "default" 0.0;
-               align: 0.5 0.0;
                rel1 {
                   relative: 0.0 PART_FARE_TEXT_Y_REL;
                   to: PART_BG_SPACER;
@@ -184,21 +179,19 @@ collections {
                }
                text {
                   font: "Tizen:style=regular";
-                  size: 60;
+                  size: TEXT_FONT_SIZE;
                   min: 1 1;
                   ellipsis: -1;
                }
                color: TEXT_COLOR_R TEXT_COLOR_G TEXT_COLOR_B TEXT_COLOR_A;
             }
          }
-         
          part {
             name: PART_CALORIES_HEADER;
             type: TEXT;
             mouse_events: 0;
             description {
                state: "default" 0.0;
-               align: 0.5 0.0;
                rel1 {
                   relative: 0.0 PART_CALORIES_HEADER_Y_REL;
                   to: PART_BG_SPACER;
@@ -209,7 +202,7 @@ collections {
                }
                text {
                   font: "Tizen:style=regular";
-                  size: 40;
+                  size: HEADER_FONT_SIZE;
                   min: 1 1;
                   ellipsis: -1;
                   text: CALORIES_HEADER_TEXT;
@@ -223,7 +216,6 @@ collections {
             mouse_events: 0;
             description {
                state: "default" 0.0;
-               align: 0.5 0.0;
                rel1 {
                   relative: 0.0 PART_CALORIES_TEXT_Y_REL;
                   to: PART_BG_SPACER;
@@ -234,14 +226,13 @@ collections {
                }
                text {
                   font: "Tizen:style=regular";
-                  size: 60;
+                  size: TEXT_FONT_SIZE;
                   min: 1 1;
                   ellipsis: -1;
                }
                color: TEXT_COLOR_R TEXT_COLOR_G TEXT_COLOR_B TEXT_COLOR_A;
             }
          }
-                  
          part {
             name: PART_SHOW_HISTORY_BTN;
             type: SWALLOW;
@@ -249,16 +240,15 @@ collections {
                state: "default" 0.0;
                align: 0.0 1.0;
                rel1 {
-                  relative: 0.1 0.8;
+                  relative: 0.1 0.9;
                   to: PART_BG_SPACER;
                }
                rel2 {
-                  relative: 0.9 0.87;
+                  relative: 0.9 0.97;
                   to: PART_BG_SPACER;
                }
             }
          }
-                                   
          part {
             name: PART_START_BTN;
             type: SWALLOW;
@@ -282,13 +272,92 @@ collections {
                state: "default" 0.0;
                align: 0.0 1.0;
                rel1 {
-                  relative: 0.55 0.9;
+                  relative: PART_STOP_BTN_X_REL1 PART_STOP_BTN_Y_REL1;
                   to: PART_BG_SPACER;
                }
                rel2 {
-                  relative: 0.9 0.97;
+                  relative: PART_STOP_BTN_X_REL2 PART_STOP_BTN_Y_REL2;
                   to: PART_BG_SPACER;
                }
+            }
+         }
+      }
+   }
+   
+   group { 
+      name: "settings";
+      
+      parts {
+         part {
+            name: PART_BG_SPACER;
+            type: SPACER;
+            description {
+               state: "default" 0.0;
+               align: 0.0 0.0;
+               rel1 {
+                  relative: 0.0 0.0;
+               }
+               rel2 {
+                  relative: 1.0 1.0;
+               }
+            }
+         }
+                  
+         part {
+         	name: PART_WEIGHT_HEADER;
+            type: TEXT;
+            mouse_events: 0;
+            description { 
+               state: "default" 0.0; 				              
+               rel1 {
+                  relative: 0.0 0.0;
+                  to: PART_BG_SPACER;
+               }
+               rel2 {
+                  relative: 1.0 0.15;
+                  to: PART_BG_SPACER;
+               }
+               text {
+                  text: PART_WEIGHT_HEADER_TEXT;
+                  font: FONT_STYLE;
+                  size: HEADER_FONT_SIZE;
+               }
+               color: 0 0 0 255;
+            }
+         }
+         
+         part {
+            name: PART_WEIGHT_ENTRY;
+            type: SWALLOW;
+            mouse_events: 1;
+            description { 
+               state: "default" 0.0;
+               rel1 {
+                  relative: 0.0 0.1;
+                  to: PART_BG_SPACER;
+               }
+               rel2 {
+                  relative: 1.0 0.3;
+                  to: PART_BG_SPACER;
+               }
+            }
+         }
+         
+         part {
+            name: PART_SAVE_BTN;
+            type: SWALLOW;
+            mouse_events: 1;
+            description { 
+               state: "default" 0.0;
+               rel1 {
+                  relative: 0.25 0.4;
+                  to: PART_BG_SPACER;
+               }
+               rel2 {
+                  relative: 0.75 0.5;
+                  to: PART_BG_SPACER;
+               }
+               
             }
          }
       }

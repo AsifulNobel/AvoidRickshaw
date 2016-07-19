@@ -1,9 +1,12 @@
 #include <locations.h>
 #include <math.h>
 #include <sensor.h>
+#include <Ecore.h>
+#include <app_preference.h>
 #include "avoidrickshaw.h"
 #include "data.h"
 #include "Sqlitedbhelper.h"
+#include "view.h"
 
 #define TRESHOLD 0.2
 #define MAX_ACCEL_INIT_VALUE 1000
@@ -23,11 +26,13 @@ static struct data_info {
 	data_position_changed_callback_t position_changed_callback;
 	data_gps_steps_count_callback_t steps_count_changed_callback;
 	data_fare_count_callback_t fare_count_changed_callback;
+	data_calorie_count_callback_t calorie_count_changed_callback;
 	sensor_listener_h acceleration_listener;
 	double prev_acc_av;
 	double init_acc_av;
 	int steps_count;
-	int calories;	// Does not get calculated, yet
+	double start_time;
+	double calories;	// Does not get calculated, yet
 } s_info = {
 	.location_manager = NULL,
 	.total_distance = 0.0,
@@ -36,11 +41,13 @@ static struct data_info {
 	.position_changed_callback = NULL,
 	.steps_count_changed_callback = NULL,
 	.fare_count_changed_callback = NULL,
+	.calorie_count_changed_callback = NULL,
 	.acceleration_listener = NULL,
 	.prev_acc_av = MAX_ACCEL_INIT_VALUE,
 	.init_acc_av = MAX_ACCEL_INIT_VALUE,
 	.steps_count = 0,
-	.calories = 0,
+	.start_time = 0.0,
+	.calories = 0.0,
 };
 
 static void _pos_updated_cb(double latitude, double longitude, double altitude, time_t timestamp, void *data);
@@ -55,6 +62,7 @@ static bool _data_acceleration_sensor_init_handle(void);
 static void _data_acceleration_sensor_release_handle(void);
 static int count_fare(void);
 void _data_save_db(void);
+static void calorieBurner();
 
 /**
  * @brief Initialization function for data module.
@@ -93,6 +101,7 @@ void data_tracking_start(void)
 {
 	_data_distance_tracker_start();
 	_data_acceleration_sensor_start();
+	s_info.start_time = ecore_time_get();
 
 	/* Re-initialize count on start of another session */
 	if (!s_info.steps_count) {
@@ -134,6 +143,11 @@ void data_set_fare_changed_callback(data_fare_count_callback_t fare_count_callba
 	s_info.fare_count_changed_callback = fare_count_callback;
 }
 
+void data_set_calorie_changed_callback(data_calorie_count_callback_t calorie_count_callback)
+{
+	s_info.calorie_count_changed_callback = calorie_count_callback;
+}
+
 /**
  * @brief Obtains the state of the GPS module and attaches a callback function
  * for its state change.
@@ -170,24 +184,10 @@ int count_fare(void) {
 
 	double baseDistance = 1.0;
 
-	if (s_info.total_distance > 1.0)
-		fare = (int) baseFare + (s_info.total_distance - baseDistance) * farePerUnitDistance;
+	if (s_info.total_distance > 1000.0)
+		fare = (int) baseFare + ((s_info.total_distance / 1000) - baseDistance) * farePerUnitDistance;
 	else
 		fare = 0.0;
-
-//	Dummy fare calculator logic
-//	int fare;
-//	double tmp = s_info.total_distance / 400.0;
-//
-//	if (tmp > 10.0) {
-//		fare = (int) tmp*2.5;
-//	}
-//	else if (tmp > 5.0) {
-//		fare = (int) tmp*5.0;
-//	}
-//	else {
-//		fare = (int) tmp*10.0;
-//	}
 
 	s_info.fare_count_changed_callback(fare);
 
@@ -252,6 +252,7 @@ static void _pos_updated_cb(double latitude, double longitude, double altitude, 
 		s_info.position_changed_callback(s_info.total_distance);
 
 	count_fare();
+	calorieBurner();
 }
 
 /**
@@ -324,6 +325,7 @@ static void _data_distance_tracker_stop(void)
 	/* Re-initialize distance and steps */
 	s_info.total_distance = 0.0;
 	s_info.steps_count = 0;
+	s_info.calories = 0.0;
 }
 
 /**
@@ -355,6 +357,8 @@ static void _accel_cb(sensor_h sensor, sensor_event_s *event, void *data)
 	s_info.prev_acc_av = current_acc_av;
 	dlog_print(DLOG_DEBUG, LOG_TAG, "event-values: %lf, %lf, %lf, %lf", event->values[0],
 			event->values[1], event->values[2], event->values[3]);
+
+//	dlog_print(DLOG_DEBUG, LOG_TAG, "Time: %lf", ecore_time_get());
 }
 
 /**
@@ -448,6 +452,8 @@ static void _data_acceleration_sensor_stop(void)
  * @Brief Callback function for saving session info in database.
  */
 void _data_save_db(void) {
+	dlog_print(DLOG_DEBUG, LOG_TAG, "Stop button clicked!");
+
 	int temp;
 	temp = count_fare();
 
@@ -460,10 +466,10 @@ void _data_save_db(void) {
 	/*allocate msgdata memory. this will be used for retrieving data from database*/
 	msgdata = (QueryData*) calloc (1, sizeof(QueryData));
 
-	msgdata->distance = s_info.total_distance;
+	msgdata->distance = (float) s_info.total_distance;
 	msgdata->fare = temp;
 	msgdata->steps = s_info.steps_count;
-	msgdata->calories = s_info.calories;
+	msgdata->calories = (float) s_info.calories;
 
 	if (msgdata->steps > 0 && msgdata->distance > 0)
 		ret = insertIntoDb(msgdata->distance, msgdata->steps, msgdata->calories, msgdata->fare);
@@ -493,6 +499,8 @@ void _data_save_db(void) {
  * @Brief Callback function for showing session info in database through log.
  */
 void data_show_db(void) {
+	dlog_print(DLOG_DEBUG, LOG_TAG, "Show History button clicked!");
+
 	QueryData* msgdata;
 
 	/*allocate msgdata memory. this will be used for retrieving data from database*/
@@ -515,4 +523,35 @@ void data_show_db(void) {
 
 		num_of_rows--;
 	}
+}
+
+static void calorieBurner()
+{
+	const char key_name[] = "weight\0";
+	bool existing;
+
+	preference_is_existing(key_name, &existing);
+
+	double weight;
+	double tempDistance = s_info.total_distance / 1000;
+
+	if (existing) {
+		preference_get_double(key_name, &weight);
+	}
+	else {
+		weight = 70.0;
+	}
+
+
+    double elapsedTime = ecore_time_get();
+    elapsedTime -= s_info.start_time;
+    elapsedTime = elapsedTime / 3600;
+
+    dlog_print(DLOG_DEBUG, LOG_TAG, "elapsed time; %lf", elapsedTime);
+
+    s_info.calories = 0.0215 * tempDistance * tempDistance * tempDistance
+    		- 0.1765 * tempDistance * tempDistance + 0.8710 * tempDistance
+    		+ 1.4577 * weight * elapsedTime ;
+
+    s_info.calorie_count_changed_callback(s_info.calories);
 }
