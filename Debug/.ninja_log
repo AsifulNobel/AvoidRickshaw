@@ -87,3 +87,7 @@
 2	218	0	src/view.o	5bbd374216a9c9c4
 2	297	0	src/data.o	ed7aedc0beca367a
 297	542	0	avoidrickshaw	73c03ea27f1df406
+1	189	0	src/Sqlitedbhelper.o	10a86cb159511b97
+189	362	0	avoidrickshaw	73c03ea27f1df406
+1	203	0	src/data.o	ed7aedc0beca367a
+203	371	0	avoidrickshaw	73c03ea27f1df406

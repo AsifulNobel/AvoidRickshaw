@@ -104,7 +104,7 @@ int insertIntoDb(float distance, int steps, float calories, int fare)
 	char *ErrMsg;
 	int ret;
 	/*read system date time using sqlite function*/
-	char* dateTime = "strftime('%Y-%m-%d  %H-%M','now')";
+	char* dateTime = "strftime('%Y-%m-%d','now')";
 
 	/*prepare query for INSERT operation*/
 	snprintf(sqlbuff, BUFLEN, "INSERT INTO "\

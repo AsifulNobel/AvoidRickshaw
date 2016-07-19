@@ -32,7 +32,8 @@ static struct data_info {
 	double init_acc_av;
 	int steps_count;
 	double start_time;
-	double calories;	// Does not get calculated, yet
+	double calories;
+	double weight;
 } s_info = {
 	.location_manager = NULL,
 	.total_distance = 0.0,
@@ -48,6 +49,7 @@ static struct data_info {
 	.steps_count = 0,
 	.start_time = 0.0,
 	.calories = 0.0,
+	.weight = 70.0
 };
 
 static void _pos_updated_cb(double latitude, double longitude, double altitude, time_t timestamp, void *data);
@@ -108,6 +110,15 @@ void data_tracking_start(void)
 		s_info.steps_count_changed_callback(s_info.steps_count);
 		s_info.position_changed_callback(s_info.total_distance);
 		s_info.fare_count_changed_callback(0);
+	}
+
+	const char key_name[] = "weight\0";
+	bool existing;
+
+	preference_is_existing(key_name, &existing);
+
+	if (existing) {
+		preference_get_double(key_name, &s_info.weight);
 	}
 }
 
@@ -527,23 +538,9 @@ void data_show_db(void) {
 
 static void calorieBurner()
 {
-	const char key_name[] = "weight\0";
-	bool existing;
-
-	preference_is_existing(key_name, &existing);
-
-	double weight;
 	double tempDistance = s_info.total_distance / 1000;
-
-	if (existing) {
-		preference_get_double(key_name, &weight);
-	}
-	else {
-		weight = 70.0;
-	}
-
-
     double elapsedTime = ecore_time_get();
+
     elapsedTime -= s_info.start_time;
     elapsedTime = elapsedTime / 3600;
 
@@ -551,7 +548,7 @@ static void calorieBurner()
 
     s_info.calories = 0.0215 * tempDistance * tempDistance * tempDistance
     		- 0.1765 * tempDistance * tempDistance + 0.8710 * tempDistance
-    		+ 1.4577 * weight * elapsedTime ;
+    		+ 1.4577 * s_info.weight * elapsedTime ;
 
     s_info.calorie_count_changed_callback(s_info.calories);
 }
