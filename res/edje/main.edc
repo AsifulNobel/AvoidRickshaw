@@ -38,7 +38,7 @@ collections {
                   min: 1 1;
                   ellipsis: -1;
                }
-               color: 0 0 0 255;
+               color: 204 0 187 255;
             }
          }
          part {
@@ -283,10 +283,8 @@ collections {
          }
       }
    }
-   
-   group { 
+   group {
       name: "settings";
-      
       parts {
          part {
             name: PART_BG_SPACER;
@@ -302,13 +300,12 @@ collections {
                }
             }
          }
-                  
          part {
-         	name: PART_WEIGHT_HEADER;
+            name: PART_WEIGHT_HEADER;
             type: TEXT;
             mouse_events: 0;
-            description { 
-               state: "default" 0.0; 				              
+            description {
+               state: "default" 0.0;
                rel1 {
                   relative: 0.0 0.0;
                   to: PART_BG_SPACER;
@@ -325,12 +322,11 @@ collections {
                color: 0 0 0 255;
             }
          }
-         
          part {
             name: PART_WEIGHT_ENTRY;
             type: SWALLOW;
             mouse_events: 1;
-            description { 
+            description {
                state: "default" 0.0;
                rel1 {
                   relative: 0.0 0.1;
@@ -342,12 +338,11 @@ collections {
                }
             }
          }
-         
          part {
             name: PART_SAVE_BTN;
             type: SWALLOW;
             mouse_events: 1;
-            description { 
+            description {
                state: "default" 0.0;
                rel1 {
                   relative: 0.25 0.4;
@@ -357,7 +352,6 @@ collections {
                   relative: 0.75 0.5;
                   to: PART_BG_SPACER;
                }
-               
             }
          }
       }

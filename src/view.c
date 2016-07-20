@@ -5,28 +5,28 @@
 #include "view_defines.h"
 
 #define BUF_MAX 16
-#define WALK_STR "WALK"
-#define RUN_STR "RUN"
-#define STATIONARY_STR "STATIONARY"
 
 static struct view_info {
 	Evas_Object *win;
+	Evas_Object *main_layout;
 	Evas_Object *layout;
 	Evas_Object *conform;
+	Evas_Object *navi;
 	view_button_clicked_callback_t button_start_clicked_cb;
 	view_button_clicked_callback_t button_stop_clicked_cb;
 	view_button_clicked_callback_t button_history_clicked_cb;
 } s_info = {
 	.win = NULL,
+	.main_layout = NULL,
 	.layout = NULL,
 	.conform = NULL,
+	.navi = NULL,
 	.button_start_clicked_cb = NULL,
 	.button_stop_clicked_cb = NULL,
 	.button_history_clicked_cb = NULL,
 };
 
 static void _delete_win_request_cb(void *data, Evas_Object *obj, void *event_info);
-static void _layout_back_cb(void *data, Evas_Object *obj, void *event_info);
 static void _get_app_resource(const char *edj_file_in, char *edj_path_out, int edj_path_max);
 static void _start_cb(void *data, Evas_Object *obj, void *event);
 static void _stop_cb(void *data, Evas_Object *obj, void *event);
@@ -34,6 +34,14 @@ static void _show_history_cb(void *data, Evas_Object *obj, void *event);
 static Evas_Object *_create_button(Evas_Object *parent, char *btn_text, Evas_Smart_Cb func);
 static void _settings_cb(void *data, Evas_Object *obj, void *event);
 static void _save_cb(void *data, Evas_Object *obj, void *event);
+
+static Eina_Bool
+naviframe_pop_cb(void *data, Elm_Object_Item *it)
+{
+	ui_app_exit();
+
+	return EINA_FALSE;
+}
 
 /**
  * @brief Creates essential objects: window, conformant and layout.
@@ -50,6 +58,8 @@ Eina_Bool view_create(void *user_data)
 		return EINA_FALSE;
 	}
 
+	//evas_object_smart_callback_add(s_info.win, "delete,request", win_delete_request_cb, NULL);
+
 	/* Create the conformant */
 	s_info.conform = view_create_conformant(s_info.win);
 	if (s_info.conform == NULL) {
@@ -58,15 +68,32 @@ Eina_Bool view_create(void *user_data)
 	}
 
 	/* Base Layout */
-	s_info.layout = view_create_layout(s_info.win);
+	s_info.main_layout = elm_layout_add(s_info.conform);
+	evas_object_size_hint_weight_set(s_info.main_layout, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
+	elm_layout_theme_set(s_info.main_layout, "layout", "application", "default");
+	evas_object_show(s_info.main_layout);
+
+	elm_object_content_set(s_info.conform, s_info.main_layout);
+
+
+	/* Naviframe */
+	s_info.navi = elm_naviframe_add(s_info.main_layout);
+
+	/* Push a previous button to naviframe item automatically */
+	elm_naviframe_prev_btn_auto_pushed_set(s_info.navi, EINA_TRUE);
+
+	s_info.layout = view_create_layout(s_info.navi);
 	if (!s_info.layout) {
 		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to create base layout");
 		evas_object_del(s_info.win);
 		return false;
 	}
-	elm_object_content_set(s_info.conform, s_info.layout);
 
-	/* Show window after base GUI is set up */
+	Elm_Object_Item *nf_it;
+	nf_it = elm_naviframe_item_push(s_info.navi, "Avoid Rickshaw", NULL, NULL, s_info.layout, NULL);
+	elm_naviframe_item_pop_cb_set(nf_it, naviframe_pop_cb, s_info.win);
+	elm_object_part_content_set(s_info.main_layout, "elm.swallow.content", s_info.navi);
+
 	evas_object_show(s_info.win);
 
 	return EINA_TRUE;
@@ -127,7 +154,7 @@ Evas_Object *view_create_layout(Evas_Object *parent)
 	/* Layout size setting */
 	evas_object_size_hint_weight_set(layout, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
 
-	eext_object_event_callback_add(layout, EEXT_CALLBACK_BACK, _layout_back_cb, NULL);
+	eext_object_event_callback_add(parent, EEXT_CALLBACK_BACK, eext_naviframe_back_cb, NULL);
 
 	/* Initialize text parts */
 	elm_object_part_text_set(layout, PART_GPS_STATUS, GPS_NOT_DETECTED);
@@ -145,7 +172,7 @@ Evas_Object *view_create_layout(Evas_Object *parent)
 	elm_object_part_content_set(layout, PART_STOP_BTN, stop_button);
 	elm_object_part_content_set(layout, PART_SHOW_HISTORY_BTN, history_button);
 
-	eext_object_event_callback_add(layout, EEXT_CALLBACK_MORE, _settings_cb, NULL);
+	eext_object_event_callback_add(layout, EEXT_CALLBACK_MORE, _settings_cb, parent);
 
 	evas_object_show(layout);
 
@@ -279,23 +306,6 @@ static void _delete_win_request_cb(void *data, Evas_Object *obj, void *event_inf
 }
 
 /**
- * @brief Internal callback function invoked on HW Back button press.
- * @param[in] data The user data passed to the eext_object_event_callback_add() function.
- * @param[in] obj The object invoking this callback function.
- * @param[in] event_info The structure containing the information on this event.
- */
-static void _layout_back_cb(void *data, Evas_Object *obj, void *event_info)
-{
-	/* Let window go to hide state. */
-	Evas_Object *win = data;
-
-	if (data == NULL)
-		elm_win_lower(s_info.win);
-	else
-		evas_object_del(win);
-}
-
-/**
  * @brief Internal function which creates fully qualified path to the provided resource file.
  * @param[in] edj_file_in The file name.
  * @param[out] edj_path_out The fully qualified path to the edj_file_in file.
@@ -377,40 +387,24 @@ static void _settings_cb(void *data, Evas_Object *obj, void *event)
 {
 	dlog_print(DLOG_DEBUG, LOG_TAG, "Settings button pressed.");
 
-	if (!view_settings_create(NULL))
+	if (!view_settings_create(data))
 		dlog_print(DLOG_DEBUG, LOG_TAG, "Failed to create settings view.");
 }
 
 
-Eina_Bool view_settings_create(void *user_data)
+Eina_Bool view_settings_create(void *data)
 {
-	/* Create the window */
-	Evas_Object *win = view_create_win(PACKAGE);
-	if (win == NULL) {
-		dlog_print(DLOG_ERROR, LOG_TAG, "failed to create a settings window.");
-		return EINA_FALSE;
-	}
+	Evas_Object *nf = (Evas_Object *)data;
 
-	/* Create the conformant */
-	Evas_Object *conform = view_create_conformant(win);
-
-	if (conform == NULL) {
-		dlog_print(DLOG_ERROR, LOG_TAG, "failed to create a conformant for settings");
-		return EINA_FALSE;
-	}
 
 	/* Base Layout */
-	Evas_Object *layout = view_create_settings_layout(win);
+	Evas_Object *layout = view_create_settings_layout(nf);
 	if (!layout) {
 		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to create settings layout");
-		evas_object_del(win);
 		return false;
 	}
-	elm_object_content_set(conform, layout);
 
-	/* Show window after base GUI is set up */
-	evas_object_show(win);
-
+	elm_naviframe_item_push(nf, "Settings", NULL, NULL, layout, NULL);
 	return EINA_TRUE;
 }
 
@@ -434,8 +428,6 @@ Evas_Object *view_create_settings_layout(Evas_Object *parent)
 
 	/* Layout size setting */
 	evas_object_size_hint_weight_set(layout, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
-
-	eext_object_event_callback_add(layout, EEXT_CALLBACK_BACK, _layout_back_cb, parent);
 
 	Evas_Object *weightEntry = elm_entry_add(layout);
 	elm_entry_input_panel_layout_set(weightEntry, ELM_INPUT_PANEL_LAYOUT_NUMBER);
@@ -461,7 +453,7 @@ Evas_Object *view_create_settings_layout(Evas_Object *parent)
 
 	elm_entry_editable_set(weightEntry, EINA_TRUE);
 	elm_entry_single_line_set(weightEntry, EINA_TRUE);
-	elm_entry_text_style_user_push(weightEntry, "DEFAULT='font=Tizen:style=regular font_size=100 color=#0af align=center valign=center underline=single underline_color=#000'");
+	elm_entry_text_style_user_push(weightEntry, "DEFAULT='font=Tizen:style=regular font_size=100 color=#07a align=center valign=center underline=single underline_color=#000'");
 	evas_object_show(weightEntry);
 
 	/* Initialize button */
