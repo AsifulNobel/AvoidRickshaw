@@ -14,6 +14,10 @@ build src/data.o: build_c ../src/data.c
 build src/data.o.ast: build_c_fast_ast ../src/data.c 
 build $sareportdir/src/data.o.xml: build_c_fast_sa src/data.o.ast || externalFnMap.txt
 build src/data.o.txt: build_c_api ../src/data.c 
+build src/graph.o: build_c ../src/graph.c 
+build src/graph.o.ast: build_c_fast_ast ../src/graph.c 
+build $sareportdir/src/graph.o.xml: build_c_fast_sa src/graph.o.ast || externalFnMap.txt
+build src/graph.o.txt: build_c_api ../src/graph.c 
 build src/main.o: build_c ../src/main.c 
 build src/main.o.ast: build_c_fast_ast ../src/main.c 
 build $sareportdir/src/main.o.xml: build_c_fast_sa src/main.o.ast || externalFnMap.txt

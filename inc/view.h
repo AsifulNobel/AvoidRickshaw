@@ -19,5 +19,6 @@ void view_destroy(void);
 
 Eina_Bool view_settings_create(void *user_data);
 Evas_Object *view_create_settings_layout(Evas_Object *parent);
+Eina_Bool view_history_create(void *data);
 
 #endif

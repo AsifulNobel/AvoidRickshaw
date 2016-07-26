@@ -1,8 +1,10 @@
 #include <Elementary.h>
 #include <app_preference.h>
+#include <cairo.h>
 #include "avoidrickshaw.h"
 #include "view.h"
 #include "view_defines.h"
+#include "graph.h"
 
 #define BUF_MAX 16
 
@@ -26,14 +28,16 @@ static struct view_info {
 	.button_history_clicked_cb = NULL,
 };
 
+
 static void _delete_win_request_cb(void *data, Evas_Object *obj, void *event_info);
 static void _get_app_resource(const char *edj_file_in, char *edj_path_out, int edj_path_max);
 static void _start_cb(void *data, Evas_Object *obj, void *event);
 static void _stop_cb(void *data, Evas_Object *obj, void *event);
 static void _show_history_cb(void *data, Evas_Object *obj, void *event);
-static Evas_Object *_create_button(Evas_Object *parent, char *btn_text, Evas_Smart_Cb func);
+static Evas_Object *_create_button(Evas_Object *parent, char *btn_text, Evas_Smart_Cb func, void *data);
 static void _settings_cb(void *data, Evas_Object *obj, void *event);
 static void _save_cb(void *data, Evas_Object *obj, void *event);
+
 
 static Eina_Bool
 naviframe_pop_cb(void *data, Elm_Object_Item *it)
@@ -164,9 +168,9 @@ Evas_Object *view_create_layout(Evas_Object *parent)
 	elm_object_part_text_set(layout, PART_CALORIES_TEXT, NOT_AVAILABLE);
 
 	/* Initialize buttons */
-	start_button = _create_button(s_info.win, BTN_START_TEXT, _start_cb);
-	stop_button = _create_button(s_info.win, BTN_STOP_TEXT, _stop_cb);
-	history_button = _create_button(s_info.win, BTN_HISTORY_TEXT, _show_history_cb);
+	start_button = _create_button(s_info.win, BTN_START_TEXT, _start_cb, NULL);
+	stop_button = _create_button(s_info.win, BTN_STOP_TEXT, _stop_cb, NULL);
+	history_button = _create_button(s_info.win, BTN_HISTORY_TEXT, _show_history_cb, parent);
 
 	elm_object_part_content_set(layout, PART_START_BTN, start_button);
 	elm_object_part_content_set(layout, PART_STOP_BTN, stop_button);
@@ -356,8 +360,44 @@ static void _show_history_cb(void *data, Evas_Object *obj, void *event)
 {
 	dlog_print(DLOG_DEBUG, LOG_TAG, "History button clicked");
 
-	if (s_info.button_history_clicked_cb)
+	if (s_info.button_history_clicked_cb){
+		dlog_print(DLOG_ERROR, LOG_TAG, "Creating history view.");
 		s_info.button_history_clicked_cb();
+	}
+
+	if (!view_history_create(data)){
+		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to create history view.");
+	}
+}
+
+Eina_Bool view_history_create(void *data)
+{
+	Evas_Object *nf = (Evas_Object *)data;
+	appdata_s *ad = {0,};
+
+	dlog_print(DLOG_ERROR, LOG_TAG, "Creating evas_object_image.");
+	ad->img = evas_object_image_filled_add(evas_object_evas_get(nf));
+
+	dlog_print(DLOG_ERROR, LOG_TAG, "Showing image.");
+	evas_object_show(ad->img);
+
+	dlog_print(DLOG_ERROR, LOG_TAG, "Calling evas_object_geometry_get...");
+	evas_object_geometry_get(nf, NULL, NULL, &ad->width, &ad->height);
+
+	dlog_print(DLOG_ERROR, LOG_TAG, "Calling cairo_image_surface_create...");
+	ad->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, ad->width, ad->height);
+
+	dlog_print(DLOG_ERROR, LOG_TAG, "Calling cairo_create...");
+	ad->cairo = cairo_create(ad->surface);
+
+	dlog_print(DLOG_ERROR, LOG_TAG, "Calling cairo_drawing...");
+	cairo_drawing(ad);
+
+	dlog_print(DLOG_ERROR, LOG_TAG, "Calling elm_naviframe_item_push...");
+	elm_naviframe_item_push(nf, "History", NULL, NULL, ad->img, NULL);
+
+	dlog_print(DLOG_ERROR, LOG_TAG, "Returning...");
+	return EINA_TRUE;
 }
 
 /**
@@ -368,7 +408,7 @@ static void _show_history_cb(void *data, Evas_Object *obj, void *event)
  * @return This function returns the button object if it was created successfully,
  * otherwise NULL is returned.
  */
-static Evas_Object *_create_button(Evas_Object *parent, char *btn_text, Evas_Smart_Cb func)
+static Evas_Object *_create_button(Evas_Object *parent, char *btn_text, Evas_Smart_Cb func, void *data)
 {
 	Evas_Object *btn = elm_button_add(parent);
 	if (!btn) {
@@ -377,7 +417,7 @@ static Evas_Object *_create_button(Evas_Object *parent, char *btn_text, Evas_Sma
 	}
 
 	elm_object_text_set(btn, btn_text);
-	evas_object_smart_callback_add(btn, "clicked", func, NULL);
+	evas_object_smart_callback_add(btn, "clicked", func, data);
 	evas_object_show(btn);
 
 	return btn;
@@ -401,7 +441,7 @@ Eina_Bool view_settings_create(void *data)
 	Evas_Object *layout = view_create_settings_layout(nf);
 	if (!layout) {
 		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to create settings layout");
-		return false;
+		return EINA_FALSE;
 	}
 
 	elm_naviframe_item_push(nf, "Settings", NULL, NULL, layout, NULL);
