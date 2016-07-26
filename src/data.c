@@ -30,6 +30,7 @@ static struct data_info {
 	sensor_listener_h acceleration_listener;
 	double prev_acc_av;
 	double init_acc_av;
+	int prev_steps_count;
 	int steps_count;
 	double start_time;
 	double calories;
@@ -46,6 +47,7 @@ static struct data_info {
 	.acceleration_listener = NULL,
 	.prev_acc_av = MAX_ACCEL_INIT_VALUE,
 	.init_acc_av = MAX_ACCEL_INIT_VALUE,
+	.prev_steps_count = 0,
 	.steps_count = 0,
 	.start_time = 0.0,
 	.calories = 0.0,
@@ -110,6 +112,7 @@ void data_tracking_start(void)
 		s_info.steps_count_changed_callback(s_info.steps_count);
 		s_info.position_changed_callback(s_info.total_distance);
 		s_info.fare_count_changed_callback(0);
+		view_set_calories(s_info.calories);
 	}
 
 	const char key_name[] = "weight\0";
@@ -228,9 +231,10 @@ static void _pos_updated_cb(double latitude, double longitude, double altitude, 
 
 	dlog_print(DLOG_DEBUG, LOG_TAG, "horizontal_acc: %lf, vertical_acc: %lf", horizontal_acc, vertical_acc);
 
-	/* If callback is called for the first time, set previous values */
+	/* If callback is called for the first time and step count is non-zero, set previous values */
 	if (fabs(s_info.prev_latitude - LAT_UNINITIATED) < DOUBLE_COMPARIZON_THRESHOLD &&
-		fabs(s_info.prev_longitude - LONG_UNINITIATED) < DOUBLE_COMPARIZON_THRESHOLD) {
+		fabs(s_info.prev_longitude - LONG_UNINITIATED) < DOUBLE_COMPARIZON_THRESHOLD &&
+		s_info.steps_count > 0) {
 		s_info.prev_latitude = latitude;
 		s_info.prev_longitude = longitude;
 
@@ -240,10 +244,6 @@ static void _pos_updated_cb(double latitude, double longitude, double altitude, 
 	dlog_print(DLOG_DEBUG, LOG_TAG, "previous lat: %lf, previous long: %lf", s_info.prev_latitude, s_info.prev_longitude);
 	dlog_print(DLOG_DEBUG, LOG_TAG, "current lat: %lf, current long: %lf", latitude, longitude);
 
-//	if (horizontal_acc > 30.0) {
-//		return;
-//	}
-
 	/* Calculate distance between previous and current location data and
 	 * update view */
 	ret = location_manager_get_distance(latitude, longitude, s_info.prev_latitude, s_info.prev_longitude, &distance);
@@ -252,18 +252,34 @@ static void _pos_updated_cb(double latitude, double longitude, double altitude, 
 		return;
 	}
 
-	s_info.total_distance += distance;
-	dlog_print(DLOG_DEBUG, LOG_TAG, "total distance: %lf meters", s_info.total_distance);
+	if (s_info.steps_count > s_info.prev_steps_count) {
+		// If user is actually walking/running
 
-	/* Set new prev values */
-	s_info.prev_latitude = latitude;
-	s_info.prev_longitude = longitude;
+		s_info.total_distance += distance;
+		dlog_print(DLOG_DEBUG, LOG_TAG, "total distance: %lf meters", s_info.total_distance);
 
-	if (s_info.position_changed_callback)
-		s_info.position_changed_callback(s_info.total_distance);
+		/* Set new prev values */
+		s_info.prev_latitude = latitude;
+		s_info.prev_longitude = longitude;
+		s_info.prev_steps_count = s_info.steps_count;
 
-	count_fare();
-	calorieBurner();
+		if (s_info.position_changed_callback)
+			s_info.position_changed_callback(s_info.total_distance);
+
+		count_fare();
+		calorieBurner();
+	}
+	else if (distance > 0) {
+		// If user is moving, but not walking/running
+
+		s_info.prev_latitude = latitude;
+		s_info.prev_longitude = longitude;;
+
+		dlog_print(DLOG_DEBUG, LOG_TAG, "because step count did not update, saving position only.");
+	}
+	else {
+		dlog_print(DLOG_DEBUG, LOG_TAG, "because step count and distances did not update, nothing to do.");
+	}
 }
 
 /**
@@ -467,6 +483,7 @@ void _data_save_db(void) {
 
 	int temp;
 	temp = count_fare();
+	int num_rows = 0;
 
 	int ret;
 	ret = initdb();
@@ -477,32 +494,53 @@ void _data_save_db(void) {
 	/*allocate msgdata memory. this will be used for retrieving data from database*/
 	msgdata = (QueryData*) calloc (1, sizeof(QueryData));
 
-	msgdata->distance = (float) s_info.total_distance;
-	msgdata->fare = temp;
-	msgdata->steps = s_info.steps_count;
-	msgdata->calories = (float) s_info.calories;
+	ret = getMsgByCurrentDate(&msgdata, &num_rows);
 
-	if (msgdata->steps > 0 && msgdata->distance > 0)
-		ret = insertIntoDb(msgdata->distance, msgdata->steps, msgdata->calories, msgdata->fare);
-	else
-		return;
+	if (!ret){
+		if(num_rows) {
+			msgdata->distance += (float) s_info.total_distance;
+			msgdata->fare += temp;
+			msgdata->steps += s_info.steps_count;
+			msgdata->calories += (float) s_info.calories;
+
+			/*Update existing row in DB*/
+			if (msgdata->steps > 0 && msgdata->distance > 0)
+				ret = updateInfoDb(msgdata->distance, msgdata->steps, msgdata->calories, msgdata->fare);
+			else
+				return;
+		}
+		else {
+			msgdata->distance = (float) s_info.total_distance;
+			msgdata->fare = temp;
+			msgdata->steps = s_info.steps_count;
+			msgdata->calories = (float) s_info.calories;
+
+			/*Insert new row in DB*/
+			if (msgdata->steps > 0 && msgdata->distance > 0)
+				ret = insertIntoDb(msgdata->distance, msgdata->steps, msgdata->calories, msgdata->fare);
+			else
+				return;
+		}
+	}
+	else {
+		dlog_print(DLOG_ERROR, LOG_TAG, "Error querying current date info in DB!");
+	}
 
 	dlog_print(DLOG_DEBUG, LOG_TAG, "Saving session data in database...Status: %d", ret);
 
-	int num_of_rows = 0;
-	ret = getAllMsgFromDb(&msgdata, &num_of_rows);
+	ret = getAllMsgFromDb(&msgdata, &num_rows);
 
 	dlog_print(DLOG_DEBUG, LOG_TAG, "Querying database...Status: %d", ret);
-	dlog_print(DLOG_DEBUG, LOG_TAG, "Query returned number of rows: %d", num_of_rows);
+	dlog_print(DLOG_DEBUG, LOG_TAG, "Query returned number of rows: %d", num_rows);
 
 	// num_of_rows is incremented by extra 1 by the callback function selectAllItemcb
-	num_of_rows--;
-	while(num_of_rows > -1) {
+	num_rows--;
+	while(num_rows > -1) {
 		dlog_print(DLOG_DEBUG, LOG_TAG, "id: %d, date: %s, distance: %f, steps: %d, calories: %f, fare: %d",
-				msgdata[num_of_rows].id, msgdata[num_of_rows].date, msgdata[num_of_rows].distance,
-				msgdata[num_of_rows].steps, msgdata[num_of_rows].calories, msgdata[num_of_rows].fare);
+				msgdata[num_rows].id, msgdata[num_rows].date, msgdata[num_rows].distance,
+				msgdata[num_rows].steps, msgdata[num_rows].calories, msgdata[num_rows].fare);
 
-		num_of_rows--;
+		num_rows--;
 	}
 }
 
@@ -550,5 +588,6 @@ static void calorieBurner()
     		- 0.1765 * tempDistance * tempDistance + 0.8710 * tempDistance
     		+ 1.4577 * s_info.weight * elapsedTime ;
 
-    s_info.calorie_count_changed_callback(s_info.calories);
+    if (s_info.total_distance > 0)
+    	s_info.calorie_count_changed_callback(s_info.calories);
 }

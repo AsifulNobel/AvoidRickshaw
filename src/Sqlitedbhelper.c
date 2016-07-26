@@ -131,6 +131,42 @@ int insertIntoDb(float distance, int steps, float calories, int fare)
 	return SQLITE_OK;
 }
 
+int updateInfoDb(float distance, int steps, float calories, int fare)
+{
+	if(opendb() != SQLITE_OK) /*create database instance*/
+		return SQLITE_ERROR;
+
+	char sqlbuff[BUFLEN];
+	char *ErrMsg;
+	int ret;
+	/*read system date time using sqlite function*/
+	char* dateTime = "strftime('%Y-%m-%d','now')";
+
+	/*prepare query for INSERT operation*/
+	snprintf(sqlbuff, BUFLEN, "UPDATE "\
+			TABLE_NAME" SET "\
+			COL_DIST"=%f," \
+			COL_FARE"=%d," \
+			COL_CAL"=%f," \
+			COL_STP"=%d"\
+			" WHERE "\
+			COL_DATE"=%s;", /*didn't include id as it is autoincrement*/
+					distance, fare, calories, steps, dateTime);
+
+	dlog_print(DLOG_DEBUG, LOG_TAG, "Update query = [%s]", sqlbuff);
+
+	ret = sqlite3_exec(avoidRickshawDb, sqlbuff, insertcb, 0, &ErrMsg); /*execute query*/
+	if (ret != SQLITE_OK)
+	{
+		dlog_print(DLOG_ERROR, LOG_TAG, "Update Error! [%s]", sqlite3_errmsg(avoidRickshawDb));
+		sqlite3_free(ErrMsg);
+		sqlite3_close(avoidRickshawDb); /*close db instance for failed case*/
+		return SQLITE_ERROR;
+	}
+	sqlite3_close(avoidRickshawDb); /*close db instance for success case*/
+	return SQLITE_OK;
+}
+
 /***************************************************/
 
 QueryData *qrydata;
@@ -223,6 +259,43 @@ int getMsgById(QueryData **msg_data, int id)
 	*msg_data = qrydata;
 
 	sqlite3_close(avoidRickshawDb); /*close db*/
+
+   return SQLITE_OK;
+}
+
+int getMsgByCurrentDate(QueryData **msg_data, int* num_of_rows)
+{
+	if(opendb() != SQLITE_OK) /*create database instance*/
+			return SQLITE_ERROR;
+
+	qrydata = (QueryData *) calloc (1, sizeof(QueryData)); /*preparing local querydata struct*/
+	char* dateTime = "strftime('%Y-%m-%d','now')";
+
+	char sqlBuff[BUFLEN];
+	int ret;
+	char *ErrMsg;
+	select_row_count = 0;
+
+	/*prepare query for SELECT operation*/
+	snprintf(sqlBuff, BUFLEN, "SELECT * FROM infoTable WHERE "\
+			COL_DATE"=%s;", dateTime);
+
+
+	ret = sqlite3_exec(avoidRickshawDb, sqlBuff, selectAllItemcb, (void*)msg_data, &ErrMsg);
+
+	if (ret != SQLITE_OK)
+	{
+	   dlog_print(DLOG_ERROR, LOG_TAG, "Select query execution error [%s]", ErrMsg);
+	   sqlite3_free(ErrMsg);
+	   sqlite3_close(avoidRickshawDb); /*close db for failed case*/
+
+	   return SQLITE_ERROR;
+	}
+
+   *msg_data = qrydata;
+   *num_of_rows = select_row_count;
+
+   sqlite3_close(avoidRickshawDb); /*close db for success case*/
 
    return SQLITE_OK;
 }
