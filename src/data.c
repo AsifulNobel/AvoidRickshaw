@@ -18,6 +18,8 @@
 #define LAT_UNINITIATED DBL_MAX
 #define LONG_UNINITIATED DBL_MAX
 
+static bool initialized = false;
+
 static struct data_info {
 	location_manager_h location_manager;
 	double total_distance;
@@ -103,25 +105,28 @@ void data_finalize(void)
  */
 void data_tracking_start(void)
 {
-	_data_distance_tracker_start();
-	_data_acceleration_sensor_start();
-	s_info.start_time = ecore_time_get();
+	if(!initialized && data_gps_enabled_get()){
+		_data_distance_tracker_start();
+		_data_acceleration_sensor_start();
+		s_info.start_time = ecore_time_get();
+		initialized = true;
 
-	/* Re-initialize count on start of another session */
-	if (!s_info.steps_count) {
-		s_info.steps_count_changed_callback(s_info.steps_count);
-		s_info.position_changed_callback(s_info.total_distance);
-		s_info.fare_count_changed_callback(0);
-		view_set_calories(s_info.calories);
-	}
+		/* Re-initialize count on start of another session */
+		if (!s_info.steps_count) {
+			s_info.steps_count_changed_callback(s_info.steps_count);
+			s_info.position_changed_callback(s_info.total_distance);
+			s_info.fare_count_changed_callback(0);
+			view_set_calories(s_info.calories);
+		}
 
-	const char key_name[] = "weight\0";
-	bool existing;
+		const char key_name[] = "weight\0";
+		bool existing;
 
-	preference_is_existing(key_name, &existing);
+		preference_is_existing(key_name, &existing);
 
-	if (existing) {
-		preference_get_double(key_name, &s_info.weight);
+		if (existing) {
+			preference_get_double(key_name, &s_info.weight);
+		}
 	}
 }
 
@@ -132,6 +137,7 @@ void data_tracking_stop(void)
 {
 	_data_distance_tracker_stop();
 	_data_acceleration_sensor_stop();
+	initialized = false;
 }
 
 /**
