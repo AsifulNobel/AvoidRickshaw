@@ -373,28 +373,31 @@ static void _show_history_cb(void *data, Evas_Object *obj, void *event)
 Eina_Bool view_history_create(void *data)
 {
 	Evas_Object *nf = (Evas_Object *)data;
-	appdata_s *ad = {0,};
+	appdata_s ad;
+
+	Evas_Object *box = elm_box_add(nf);
+	evas_object_show(box);
 
 	dlog_print(DLOG_ERROR, LOG_TAG, "Creating evas_object_image.");
-	ad->img = evas_object_image_filled_add(evas_object_evas_get(nf));
+	ad.img = evas_object_image_filled_add(evas_object_evas_get(box));
 
 	dlog_print(DLOG_ERROR, LOG_TAG, "Showing image.");
-	evas_object_show(ad->img);
+	evas_object_show(ad.img);
 
 	dlog_print(DLOG_ERROR, LOG_TAG, "Calling evas_object_geometry_get...");
-	evas_object_geometry_get(nf, NULL, NULL, &ad->width, &ad->height);
+	evas_object_geometry_get(nf, NULL, NULL, &ad.width, &ad.height);
 
 	dlog_print(DLOG_ERROR, LOG_TAG, "Calling cairo_image_surface_create...");
-	ad->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, ad->width, ad->height);
+	ad.surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, ad.width, ad.height);
 
 	dlog_print(DLOG_ERROR, LOG_TAG, "Calling cairo_create...");
-	ad->cairo = cairo_create(ad->surface);
+	ad.cairo = cairo_create(ad.surface);
 
 	dlog_print(DLOG_ERROR, LOG_TAG, "Calling cairo_drawing...");
-	cairo_drawing(ad);
+	cairo_drawing(&ad);
 
 	dlog_print(DLOG_ERROR, LOG_TAG, "Calling elm_naviframe_item_push...");
-	elm_naviframe_item_push(nf, "History", NULL, NULL, ad->img, NULL);
+	elm_naviframe_item_push(nf, "History", NULL, NULL, box, NULL);
 
 	dlog_print(DLOG_ERROR, LOG_TAG, "Returning...");
 	return EINA_TRUE;

@@ -13,8 +13,8 @@
 
 typedef struct appdata {
 
-	Evas_Coord width;
-	Evas_Coord height;
+	int width;
+	int height;
 	Evas_Object *img;
 
 	cairo_surface_t *surface;
