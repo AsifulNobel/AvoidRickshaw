@@ -37,6 +37,8 @@ static void _show_history_cb(void *data, Evas_Object *obj, void *event);
 static Evas_Object *_create_button(Evas_Object *parent, char *btn_text, Evas_Smart_Cb func, void *data);
 static void _settings_cb(void *data, Evas_Object *obj, void *event);
 static void _save_cb(void *data, Evas_Object *obj, void *event);
+static void show_toast_popup(void *parent, char *toast_text);
+static void popup_timeout_cb(void *data, Evas_Object *obj, void *event_info);
 
 
 static Eina_Bool
@@ -163,13 +165,13 @@ Evas_Object *view_create_layout(Evas_Object *parent)
 	/* Initialize text parts */
 	elm_object_part_text_set(layout, PART_GPS_STATUS, GPS_NOT_DETECTED);
 	elm_object_part_text_set(layout, PART_STEPS_TEXT, STEPS_0);
-	elm_object_part_text_set(layout, PART_DISTANCE_TEXT, NOT_AVAILABLE);
-	elm_object_part_text_set(layout, PART_FARE_TEXT, NOT_AVAILABLE);
-	elm_object_part_text_set(layout, PART_CALORIES_TEXT, NOT_AVAILABLE);
+	elm_object_part_text_set(layout, PART_DISTANCE_TEXT, NOT_AVAILABLE_DISTANCE);
+	elm_object_part_text_set(layout, PART_FARE_TEXT, NOT_AVAILABLE_FARE);
+	elm_object_part_text_set(layout, PART_CALORIES_TEXT, NOT_AVAILABLE_CALORIE);
 
 	/* Initialize buttons */
-	start_button = _create_button(s_info.win, BTN_START_TEXT, _start_cb, NULL);
-	stop_button = _create_button(s_info.win, BTN_STOP_TEXT, _stop_cb, NULL);
+	start_button = _create_button(s_info.win, BTN_START_TEXT, _start_cb, parent);
+	stop_button = _create_button(s_info.win, BTN_STOP_TEXT, _stop_cb, parent);
 	history_button = _create_button(s_info.win, BTN_HISTORY_TEXT, _show_history_cb, parent);
 
 	elm_object_part_content_set(layout, PART_START_BTN, start_button);
@@ -333,9 +335,17 @@ static void _get_app_resource(const char *edj_file_in, char *edj_path_out, int e
  */
 static void _start_cb(void *data, Evas_Object *obj, void *event)
 {
+	bool success = false;
+
 	dlog_print(DLOG_DEBUG, LOG_TAG, "Start button clicked");
+
 	if (s_info.button_start_clicked_cb)
-		s_info.button_start_clicked_cb();
+		success = s_info.button_start_clicked_cb();
+
+	if (success)
+		show_toast_popup(data, "Session Started Successfully!");
+	else
+		show_toast_popup(data, "Error! Session cannot start.");
 }
 
 /**
@@ -348,9 +358,16 @@ static void _start_cb(void *data, Evas_Object *obj, void *event)
  */
 static void _stop_cb(void *data, Evas_Object *obj, void *event)
 {
+	bool success = false;
+
 	dlog_print(DLOG_DEBUG, LOG_TAG, "Stop button clicked");
 	if (s_info.button_stop_clicked_cb)
-		s_info.button_stop_clicked_cb();
+		success = s_info.button_stop_clicked_cb();
+
+	if (success)
+			show_toast_popup(data, "Session Stopped Successfully!");
+		else
+			show_toast_popup(data, "Error! Session cannot be stopped.");
 }
 
 /**
@@ -520,7 +537,32 @@ static void _save_cb(void *data, Evas_Object *obj, void *event)
 
 	weight = strtod(weight_str, &ptr);
 
-	preference_set_double(key_name, weight);
+	int ret = preference_set_double(key_name, weight);
 
-	dlog_print(DLOG_DEBUG, LOG_TAG, "Weight of type double: %lf", weight);
+	if (!ret)
+		show_toast_popup(s_info.navi, "Weight Info Saved Successfully!");
+	else
+		show_toast_popup(s_info.navi, "Error! Cannot Save Weight Info!");
+}
+
+static void show_toast_popup(void *parent, char *toast_text)
+{
+	Evas_Object *popup;
+	Evas_Object *nf = (Evas_Object *) parent;
+
+	popup = elm_popup_add(nf);
+	elm_object_style_set(popup, "toast");
+	evas_object_size_hint_weight_set(popup, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
+	eext_object_event_callback_add(popup, EEXT_CALLBACK_BACK, eext_popup_back_cb, NULL);
+	elm_object_text_set(popup, toast_text);
+	elm_popup_timeout_set(popup, 3.0);
+	evas_object_smart_callback_add(popup, "timeout", popup_timeout_cb, NULL);
+	evas_object_smart_callback_add(popup, "block,clicked", popup_timeout_cb, NULL);
+
+	evas_object_show(popup);
+}
+
+static void popup_timeout_cb(void *data, Evas_Object *obj, void *event_info)
+{
+	evas_object_del(obj);
 }

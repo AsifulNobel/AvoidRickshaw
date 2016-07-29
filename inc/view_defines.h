@@ -60,7 +60,9 @@
 #define GPS_OK_TEXT "GPS OK"
 #define GPS_NOT_DETECTED "No GPS. Enable GPS, Wi-Fi and restart."
 #define STEPS_0 "0"
-#define NOT_AVAILABLE "N/A"
+#define NOT_AVAILABLE_DISTANCE "0 m"
+#define NOT_AVAILABLE_FARE "Tk. 0"
+#define NOT_AVAILABLE_CALORIE "0.00 Cal"
 
 #define FONT_STYLE "Tizen:style=regular"
 #define HEADER_FONT_SIZE 30

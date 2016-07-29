@@ -1,7 +1,7 @@
 #if !defined(_VIEW_H)
 #define _VIEW_H
 
-typedef void (*view_button_clicked_callback_t)(void);
+typedef bool (*view_button_clicked_callback_t)(void);
 
 Eina_Bool view_create(void *user_data);
 Evas_Object *view_create_win(const char *pkg_name);

@@ -9,8 +9,8 @@ typedef void (*data_calorie_count_callback_t)(double);
 
 Eina_Bool data_initialize(void);
 void data_finalize(void);
-void data_tracking_start(void);
-void data_tracking_stop(void);
+bool data_tracking_start(void);
+bool data_tracking_stop(void);
 void data_show_db(void);
 bool data_gps_enabled_get(void);
 void data_set_position_changed_callback(data_position_changed_callback_t position_changed_callback);

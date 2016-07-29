@@ -58,12 +58,12 @@ static struct data_info {
 
 static void _pos_updated_cb(double latitude, double longitude, double altitude, time_t timestamp, void *data);
 static void _accel_cb(sensor_h sensor, sensor_event_s *event, void *data);
-static void _data_distance_tracker_start(void);
-static void _data_distance_tracker_stop(void);
+static bool _data_distance_tracker_start(void);
+static bool _data_distance_tracker_stop(void);
 static bool _data_distance_tracker_init(void);
 static void _data_distance_tracker_destroy(void);
-static void _data_acceleration_sensor_start(void);
-static void _data_acceleration_sensor_stop(void);
+static bool _data_acceleration_sensor_start(void);
+static bool _data_acceleration_sensor_stop(void);
 static bool _data_acceleration_sensor_init_handle(void);
 static void _data_acceleration_sensor_release_handle(void);
 static int count_fare(void);
@@ -103,11 +103,11 @@ void data_finalize(void)
 /**
  * @brief Starts the activity tracking.
  */
-void data_tracking_start(void)
+bool data_tracking_start(void)
 {
 	if(!initialized && data_gps_enabled_get()){
-		_data_distance_tracker_start();
-		_data_acceleration_sensor_start();
+		bool track = _data_distance_tracker_start();
+		bool accel_sensor = _data_acceleration_sensor_start();
 		s_info.start_time = ecore_time_get();
 		initialized = true;
 
@@ -127,17 +127,29 @@ void data_tracking_start(void)
 		if (existing) {
 			preference_get_double(key_name, &s_info.weight);
 		}
+
+		if (track && accel_sensor)
+			return true;
+		else
+			return false;
 	}
+	return false;
 }
 
 /**
  * @brief Stops the activity tracking.
  */
-void data_tracking_stop(void)
+bool data_tracking_stop(void)
 {
-	_data_distance_tracker_stop();
-	_data_acceleration_sensor_stop();
+	bool track = _data_distance_tracker_stop();
+	bool accel_sensor = _data_acceleration_sensor_stop();
+
 	initialized = false;
+
+	if (track && accel_sensor)
+		return true;
+	else
+		return false;
 }
 
 /**
@@ -330,27 +342,32 @@ static void _data_distance_tracker_destroy(void)
 /**
  * @brief Internal function responsible for distance tracker starting.
  */
-static void _data_distance_tracker_start(void)
+static bool _data_distance_tracker_start(void)
 {
 	if (!s_info.location_manager && !_data_distance_tracker_init()) {
 		dlog_print(DLOG_ERROR, LOG_TAG, "Location manager not initialized");
-		return;
+		return false;
 	}
 
-	if (location_manager_start(s_info.location_manager) != LOCATIONS_ERROR_NONE)
+	if (location_manager_start(s_info.location_manager) != LOCATIONS_ERROR_NONE){
 		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to start location manager");
+		return false;
+	}
+	return true;
 }
 
 /**
  * @brief Internal function responsible for distance tracker stopping.
  */
-static void _data_distance_tracker_stop(void)
+static bool _data_distance_tracker_stop(void)
 {
 	if (!s_info.location_manager)
-		return;
+		return false;
 
-	if (location_manager_stop(s_info.location_manager) != LOCATIONS_ERROR_NONE)
+	if (location_manager_stop(s_info.location_manager) != LOCATIONS_ERROR_NONE){
 		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to stop location manager");
+		return false;
+	}
 
 	// Save info to database
 	_data_save_db();
@@ -359,6 +376,8 @@ static void _data_distance_tracker_stop(void)
 	s_info.total_distance = 0.0;
 	s_info.steps_count = 0;
 	s_info.calories = 0.0;
+
+	return true;
 }
 
 /**
@@ -455,30 +474,35 @@ static void _data_acceleration_sensor_release_handle(void)
 /**
  * @brief Internal function responsible for acceleration sensor staring.
  */
-static void _data_acceleration_sensor_start(void)
+static bool _data_acceleration_sensor_start(void)
 {
 	if (!s_info.acceleration_listener)
-		return;
+		return false;
 
-	if (sensor_listener_start(s_info.acceleration_listener) != SENSOR_ERROR_NONE)
+	if (sensor_listener_start(s_info.acceleration_listener) != SENSOR_ERROR_NONE){
 		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to start accelerometer sensor listener");
+		return false;
+	}
+	return true;
 }
 
 /**
  * @brief Internal function responsible for acceleration sensor stopping.
  */
-static void _data_acceleration_sensor_stop(void)
+static bool _data_acceleration_sensor_stop(void)
 {
 	if (!s_info.acceleration_listener)
-		return;
+		return false;
 
 	if (sensor_listener_stop(s_info.acceleration_listener) != SENSOR_ERROR_NONE) {
 		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to stop accelerometer sensor listener");
-		return;
+		return false;
 	}
 
 	/* Reset init/prev acceleration data */
 	s_info.init_acc_av = s_info.prev_acc_av = MAX_ACCEL_INIT_VALUE;
+
+	return true;
 }
 
 /*
