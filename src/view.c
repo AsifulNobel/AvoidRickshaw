@@ -402,7 +402,20 @@ Eina_Bool view_history_create(void *data)
 	ad.surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, ad.width, ad.height);
 	ad.cairo = cairo_create(ad.surface);
 
-	cairo_drawing(&ad);
+	QueryData* msgdata;
+	msgdata = (QueryData*) calloc (1, sizeof(QueryData));
+
+	int num_of_rows = 0;
+	int ret;
+
+	ret = getAllMsgFromDb(&msgdata, &num_of_rows);
+
+	dlog_print(DLOG_DEBUG, LOG_TAG, "Querying database...Status: %d", ret);
+	dlog_print(DLOG_DEBUG, LOG_TAG, "Query returned number of rows: %d", num_of_rows);
+
+	// num_of_rows is incremented by extra 1 by the callback function selectAllItemcb
+	num_of_rows--;
+	cairo_drawing(&ad, msgdata, num_of_rows);
 
 	elm_naviframe_item_push(nf, "History", NULL, NULL, ad.img, NULL);
 

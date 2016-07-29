@@ -81,8 +81,10 @@ Eina_Bool data_initialize(void)
 	 * If you need to initialize application data,
 	 * please use this function.
 	 */
-	if (data_gps_enabled_get())
-		_data_distance_tracker_init();
+	// commented for Akib
+//	if (data_gps_enabled_get())
+//		_data_distance_tracker_init();
+	_data_distance_tracker_init();
 
 	return _data_acceleration_sensor_init_handle();
 }
@@ -105,7 +107,9 @@ void data_finalize(void)
  */
 bool data_tracking_start(void)
 {
-	if(!initialized && data_gps_enabled_get()){
+//	commented for Akib
+//	if(!initialized && data_gps_enabled_get()){
+	if(!initialized){
 		bool track = _data_distance_tracker_start();
 		bool accel_sensor = _data_acceleration_sensor_start();
 		s_info.start_time = ecore_time_get();
@@ -579,29 +583,6 @@ void _data_save_db(void) {
  */
 void data_show_db(void) {
 	dlog_print(DLOG_DEBUG, LOG_TAG, "Show History button clicked!");
-
-	QueryData* msgdata;
-
-	/*allocate msgdata memory. this will be used for retrieving data from database*/
-	msgdata = (QueryData*) calloc (1, sizeof(QueryData));
-
-	int num_of_rows = 0;
-	int ret;
-
-	ret = getAllMsgFromDb(&msgdata, &num_of_rows);
-
-	dlog_print(DLOG_DEBUG, LOG_TAG, "Querying database...Status: %d", ret);
-	dlog_print(DLOG_DEBUG, LOG_TAG, "Query returned number of rows: %d", num_of_rows);
-
-	// num_of_rows is incremented by extra 1 by the callback function selectAllItemcb
-	num_of_rows--;
-	while(num_of_rows > -1) {
-		dlog_print(DLOG_DEBUG, LOG_TAG, "id: %d, date: %s, distance: %f, steps: %d, calories: %f, fare: %d",
-				msgdata[num_of_rows].id, msgdata[num_of_rows].date, msgdata[num_of_rows].distance,
-				msgdata[num_of_rows].steps, msgdata[num_of_rows].calories, msgdata[num_of_rows].fare);
-
-		num_of_rows--;
-	}
 }
 
 static void calorieBurner()

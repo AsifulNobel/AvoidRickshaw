@@ -36,3 +36,6 @@ int deleteMsgAll();
 
 /*count number of stored msg in the database and will return the total number*/
 int getTotalMsgItemsCount(int* num_of_rows);
+
+/*Db Populate function*/
+void populateDb(void);

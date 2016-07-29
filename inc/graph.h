@@ -10,6 +10,7 @@
 
 #include <Elementary.h>
 #include <cairo.h>
+#include "Sqlitedbhelper.h"
 
 typedef struct appdata {
 
@@ -23,6 +24,6 @@ typedef struct appdata {
 } appdata_s;
 
 
-void cairo_drawing(void *data);
+void cairo_drawing(void *cairo_data, QueryData *dbData, int row_count);
 
 #endif /* GRAPH_H_ */

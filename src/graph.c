@@ -8,9 +8,19 @@
 #include <graph.h>
 #include "avoidrickshaw.h"
 
-void cairo_drawing(void *data)
+void cairo_drawing(void *cairo_data, QueryData *dbData, int row_count)
 {
-	appdata_s *ad = data;
+	appdata_s *ad = cairo_data;
+
+	while(row_count > -1) {
+		dlog_print(DLOG_DEBUG, LOG_TAG, "id: %d, date: %s, distance: %f, steps: %d, calories: %f, fare: %d",
+				dbData[row_count].id, dbData[row_count].date, dbData[row_count].distance,
+				dbData[row_count].steps, dbData[row_count].calories, dbData[row_count].fare);
+
+		row_count--;
+	}
+
+
 	double fare[28] = {10,9,8,11,14,18,12,13,18,17,24,7};
 	double calorie[28] = {24,19,18,26,30,36,28,30,38,38,60,12};
 //	double fare[7] = {9,15,8,12,6,20,12};

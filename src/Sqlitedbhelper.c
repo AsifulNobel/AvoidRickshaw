@@ -8,6 +8,7 @@
 #include <dlog.h>
 #include "avoidrickshaw.h"
 #include "Sqlitedbhelper.h"
+#include <time.h>
 
 #define DB_NAME "sample.db"
 #define TABLE_NAME "infoTable"
@@ -82,6 +83,10 @@ int initdb()
 
    dlog_print(DLOG_DEBUG, LOG_TAG, "Db Table created successfully!");
    sqlite3_close(avoidRickshawDb); /*close the db instance as operation is done here*/
+
+   /*Dummy data populate*/
+   dlog_print(DLOG_DEBUG, LOG_TAG, "Closed Db instance!");
+   populateDb();
 
    return SQLITE_OK;
 }
@@ -396,4 +401,63 @@ int getTotalMsgItemsCount(int* num_of_rows)
 	*num_of_rows = g_row_count;
 	g_row_count = 0;
    return SQLITE_OK;
+}
+
+
+void populateDb(void)
+{
+	dlog_print(DLOG_DEBUG, LOG_TAG, "Entered populateDb!");
+
+	if(opendb() != SQLITE_OK) /*create database instance*/
+	{
+		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to create database instance.");
+		return;
+	}
+
+	float distance;
+	int steps;
+	float calories;
+	int fare;
+	srand(time(NULL));
+
+	char sqlbuff[BUFLEN];
+	char *ErrMsg;
+	int ret;
+	char dateTime[14];
+
+	for(int i = 28; i >= 1; i--){
+		if (i == 25) {
+			continue;
+		}
+
+		sprintf(dateTime, "'2015-07-%02d'", i);
+
+		distance = (float) ((rand() % 19000) + 1001.0); //Distance between 1 km and 20 km
+		steps = (int) distance * 2;
+		calories = 0.0215 * distance * distance * distance
+				- 0.1765 * distance * distance + 0.8710 * distance;
+		fare = (int) (10 + ((distance / 1000) - 1.0) * 5);
+
+		/*prepare query for INSERT operation*/
+		snprintf(sqlbuff, BUFLEN, "INSERT INTO "\
+				TABLE_NAME" ("\
+				COL_DATE"," \
+				COL_DIST"," \
+				COL_FARE"," \
+				COL_CAL"," \
+				COL_STP")"\
+				" VALUES(%s, %f, %d, %f, %d);",
+						dateTime, distance, fare, calories, steps);
+
+		ret = sqlite3_exec(avoidRickshawDb, sqlbuff, insertcb, 0, &ErrMsg); /*execute query*/
+		if (ret != SQLITE_OK)
+		{
+			dlog_print(DLOG_ERROR, LOG_TAG, "PopulateDb: Insertion Error! [%s]", sqlite3_errmsg(avoidRickshawDb));
+			sqlite3_free(ErrMsg);
+			sqlite3_close(avoidRickshawDb); /*close db instance for failed case*/
+			return;
+		}
+	}
+
+	sqlite3_close(avoidRickshawDb); /*close db instance for success case*/
 }
