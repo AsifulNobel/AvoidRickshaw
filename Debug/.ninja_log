@@ -21,3 +21,14 @@
 326	567	0	avoidrickshaw	b1888967ff40a26d
 2	280	0	src/data.o	ed7aedc0beca367a
 280	465	0	avoidrickshaw	b1888967ff40a26d
+2	372	0	src/Sqlitedbhelper.o	10a86cb159511b97
+2	381	0	src/view.o	5bbd374216a9c9c4
+2	441	0	src/graph.o	bc827cac985e671c
+2	462	0	src/data.o	ed7aedc0beca367a
+462	641	0	avoidrickshaw	b1888967ff40a26d
+3	289	0	src/Sqlitedbhelper.o	10a86cb159511b97
+289	485	0	avoidrickshaw	b1888967ff40a26d
+2	211	0	src/Sqlitedbhelper.o	10a86cb159511b97
+211	406	0	avoidrickshaw	b1888967ff40a26d
+1	206	0	src/Sqlitedbhelper.o	10a86cb159511b97
+206	468	0	avoidrickshaw	b1888967ff40a26d

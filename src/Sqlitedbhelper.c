@@ -406,7 +406,6 @@ int getTotalMsgItemsCount(int* num_of_rows)
 
 void populateDb(void)
 {
-	dlog_print(DLOG_DEBUG, LOG_TAG, "Entered populateDb!");
 
 	if(opendb() != SQLITE_OK) /*create database instance*/
 	{
@@ -425,7 +424,7 @@ void populateDb(void)
 	int ret;
 	char dateTime[14];
 
-	for(int i = 28; i >= 1; i--){
+	for(int i = 2; i <= 29; i++){
 		if (i == 25) {
 			continue;
 		}
