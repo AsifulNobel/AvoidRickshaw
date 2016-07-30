@@ -417,6 +417,7 @@ void populateDb(void)
 	int steps;
 	float calories;
 	int fare;
+	float tempDistance;
 	srand(time(NULL));
 
 	char sqlbuff[BUFLEN];
@@ -432,10 +433,12 @@ void populateDb(void)
 		sprintf(dateTime, "'2015-07-%02d'", i);
 
 		distance = (float) ((rand() % 19000) + 1001.0); //Distance between 1 km and 20 km
+		tempDistance = distance / 1000;
 		steps = (int) distance * 2;
-		calories = 0.0215 * distance * distance * distance
-				- 0.1765 * distance * distance + 0.8710 * distance;
-		fare = (int) (10 + ((distance / 1000) - 1.0) * 5);
+		calories = 0.0215 * tempDistance * tempDistance * tempDistance
+				- 0.1765 * tempDistance * tempDistance + 0.8710 * tempDistance
+				+ 1.4577 * 70 * 2;
+		fare = (int) (10 + (tempDistance - 1.0) * 5);
 
 		/*prepare query for INSERT operation*/
 		snprintf(sqlbuff, BUFLEN, "INSERT INTO "\
