@@ -411,10 +411,6 @@ static void _accel_cb(sensor_h sensor, sensor_event_s *event, void *data)
 	}
 
 	s_info.prev_acc_av = current_acc_av;
-	dlog_print(DLOG_DEBUG, LOG_TAG, "event-values: %lf, %lf, %lf, %lf", event->values[0],
-			event->values[1], event->values[2], event->values[3]);
-
-//	dlog_print(DLOG_DEBUG, LOG_TAG, "Time: %lf", ecore_time_get());
 }
 
 /**

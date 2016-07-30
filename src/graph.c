@@ -12,6 +12,8 @@ void cairo_drawing(void *cairo_data, QueryData *dbData, int row_count)
 {
 	appdata_s *ad = cairo_data;
 
+	int temp = row_count;
+
 	while(row_count > -1) {
 		dlog_print(DLOG_DEBUG, LOG_TAG, "id: %d, date: %s, distance: %f, steps: %d, calories: %f, fare: %d",
 				dbData[row_count].id, dbData[row_count].date, dbData[row_count].distance,
@@ -20,64 +22,61 @@ void cairo_drawing(void *cairo_data, QueryData *dbData, int row_count)
 		row_count--;
 	}
 
+	row_count = temp;
 
-	double fare[28] = {10,9,8,11,14,18,12,13,18,17,24,7};
-	double calorie[28] = {24,19,18,26,30,36,28,30,38,38,60,12};
-//	double fare[7] = {9,15,8,12,6,20,12};
-//	double calorie[7] = {48,168,36,120,12,210,24};
 	double maxCal = 0, maxFare = 0;
-
-	int size = sizeof(fare)/sizeof(double), count = 0;
+	int count = 0;
 	double totalCalorie = 0, totalFare = 0;
+	int totDays = row_count + 1;
 
-	int totDays = 0;
-	for(int i = 0; i < size && calorie[i] > 0; i++)
+	for(int i = 0; i < totDays; i++)
 	{
-		totalCalorie += calorie[i];
-		totalFare += fare[i];
-		totDays++;
+		totalCalorie += dbData[i].calories;
+		totalFare += dbData[i].fare;
 	}
-	double fractionFare[7], fractionCal[7];
 
+	double fractionFare[7], fractionCal[7];
 	double totalWeeklyFare = 0, totalWeeklyCalorie = 0;
-	if(totDays<=7)
+
+	if (totDays <= 7)
 	{
 		for(int i = 0; i < totDays; i++)
 		{
-			totalWeeklyFare += fare[i];
-			if(fare[i] > maxFare)
-				maxFare = fare[i];
-			totalWeeklyCalorie += calorie[i];
-			if(calorie[i] > maxCal)
-				maxCal = calorie[i];
+			totalWeeklyFare += dbData[i].fare;
+			if(dbData[i].fare > maxFare)
+				maxFare = dbData[i].fare;
+			totalWeeklyCalorie += dbData[i].calories;
+			if(dbData[i].calories > maxCal)
+				maxCal = dbData[i].calories;
 			count++;
 		}
 
-		for(int i = 0; i < 7 && i < size; i++)
+		for(int i = totDays - 1, j = 0; i >= 0; i--, j++)
 		{
-			fractionFare[i] = 0.6 - (fare[i]/maxFare) * 0.5;
-			fractionCal[i] = 0.6 - (calorie[i]/maxCal) * 0.5;
+			fractionFare[j] = 0.6 - (dbData[i].fare/maxFare) * 0.5;
+			fractionCal[j] = 0.6 - (dbData[i].calories/maxCal) * 0.5;
 		}
 	}
 	else
 	{
-		for(int i = totDays - 7; i <totDays; i++)
+		for(int i = 0; i <7; i++)
 		{
-			totalWeeklyFare += fare[i];
-			if(fare[i] > maxFare)
-				maxFare = fare[i];
-			totalWeeklyCalorie += calorie[i];
-			if(calorie[i] > maxCal)
-				maxCal = calorie[i];
+			totalWeeklyFare += dbData[i].fare;
+			if(dbData[i].fare > maxFare)
+				maxFare = dbData[i].fare;
+			totalWeeklyCalorie += dbData[i].calories;
+			if(dbData[i].calories > maxCal)
+				maxCal = dbData[i].calories;
 			count++;
 		}
 
-		for(int i = totDays - 7, j = 0; i <totDays; i++, j++)
+		for(int i = 6, j = 0; i >=0; i--, j++)
 		{
-			fractionFare[j] = 0.6 - (fare[i]/maxFare) * 0.5;
-			fractionCal[j] = 0.6 - (calorie[i]/maxCal) * 0.5;
+			fractionFare[j] = 0.6 - (dbData[i].fare/maxFare) * 0.5;
+			fractionCal[j] = 0.6 - (dbData[i].calories/maxCal) * 0.5;
 		}
 	}
+
 	double weeklyCalorieAverage = totalWeeklyCalorie/count;
 	double avg = 0.6 - (weeklyCalorieAverage/maxCal) * 0.5;
 
@@ -92,14 +91,14 @@ void cairo_drawing(void *cairo_data, QueryData *dbData, int row_count)
 	cairo_set_source_rgba(ad->cairo, 1, 1, 1, 1);
 	cairo_paint(ad->cairo);
 
-	cairo_translate(ad->cairo, 0.05 * d, 0.1 * d);
+	cairo_translate(ad->cairo, 0.05 * d, 0.05 * d);
 	cairo_set_line_width(ad->cairo, 5);
 
 /******* x and y  start ********/
 
 	cairo_move_to (ad->cairo, 0.1 * d , 0.05 * d );
 	cairo_line_to (ad->cairo, 0.1 * d, 0.6 * d);
-	cairo_line_to (ad->cairo, 0.7 * d, 0.6 * d);
+	cairo_line_to (ad->cairo, 0.8 * d, 0.6 * d);
 	cairo_set_source_rgb(ad->cairo, 0.0, 0.0, 0.0);
 	cairo_stroke(ad->cairo);
 	cairo_line_to (ad->cairo, 0.7 * d, 0.6 * d);
@@ -107,6 +106,12 @@ void cairo_drawing(void *cairo_data, QueryData *dbData, int row_count)
 	for(double i = 0.1; i <= 0.5; i+=0.1)
 	{
 		cairo_arc(ad->cairo, 0.1 * d, i * d, 0.008 * d, 0, 2 * M_PI);
+		cairo_fill(ad->cairo);
+	}
+
+	for(double i = 0.2; i <= 0.7; i+=0.1)
+	{
+		cairo_arc(ad->cairo, i * d, 0.6 * d, 0.008 * d, 0, 2 * M_PI);
 		cairo_fill(ad->cairo);
 	}
 
@@ -220,7 +225,6 @@ void cairo_drawing(void *cairo_data, QueryData *dbData, int row_count)
 			cairo_arc(ad->cairo, 0.3 * d, fractionFare[2] * d, 0.01 * d, 0, 2 * M_PI);
 			cairo_fill(ad->cairo);
 
-
 			if(count>=4)
 			{
 				cairo_line_to (ad->cairo, 0.3 * d, fractionFare[2] * d);
@@ -278,12 +282,13 @@ void cairo_drawing(void *cairo_data, QueryData *dbData, int row_count)
 
 /************* text start ********************/
 
+
 	cairo_text_extents_t extents;
 	cairo_select_font_face (ad->cairo, "Sans",CAIRO_FONT_SLANT_NORMAL,
 			CAIRO_FONT_WEIGHT_NORMAL);
-	cairo_set_font_size (ad->cairo, 0.07 * d);
+	cairo_set_font_size (ad->cairo, 0.06 * d);
 	cairo_set_source_rgb(ad->cairo, 0, 0, 0);
-	cairo_move_to (ad->cairo, 0.3 * d, 0.055 * d);
+	cairo_move_to (ad->cairo, 0.3 * d, 0.06 * d);
 	cairo_show_text (ad->cairo, "Last Week");
 
 	cairo_set_font_size (ad->cairo, 0.04 * d);
@@ -301,107 +306,119 @@ void cairo_drawing(void *cairo_data, QueryData *dbData, int row_count)
 	cairo_move_to (ad->cairo, 0.72 * d, (avg + 0.075) * d);
 	cairo_show_text (ad->cairo, printAvg);
 
-	cairo_set_font_size (ad->cairo, 0.05 * d);
 
-	cairo_set_source_rgba(ad->cairo, 1, 0, 0, 1);
-	cairo_move_to (ad->cairo, 0.2 * d, 0.7 * d);
+	cairo_set_font_size (ad->cairo, 0.04 * d);
+
+	cairo_set_source_rgb(ad->cairo, 1, 0, 0);
+	cairo_arc(ad->cairo, 0.75 * d, 0.70 * d, 0.01 * d, 0, 2 * M_PI);
+	cairo_fill(ad->cairo);
+	cairo_move_to (ad->cairo, 0.77 * d, 0.715 * d);
 	cairo_show_text (ad->cairo, "Calorie");
 
-	cairo_set_source_rgba(ad->cairo, 0, 0, 1, 1);
-	cairo_move_to (ad->cairo, 0.5 * d, 0.7 * d);
+	cairo_set_source_rgb(ad->cairo, 0, 0, 1);
+	cairo_arc(ad->cairo, 0.75 * d, 0.75 * d, 0.01 * d, 0, 2 * M_PI);
+	cairo_fill(ad->cairo);
+	cairo_move_to (ad->cairo, 0.77 * d, 0.765 * d);
 	cairo_show_text (ad->cairo, "Fare");
 
 	cairo_set_font_size (ad->cairo, 0.035 * d);
 
 	cairo_set_source_rgb(ad->cairo, 1, 0, 0);
+
+	/*Draw calorie labels on graph y-axis*/
 	for(double i = 1; i<=5; i++)
 	{
 		char maxC[8];
 		sprintf(maxC,"%.0f" , (maxCal/5)*i);
 		cairo_text_extents (ad->cairo, maxC, &extents);
-		cairo_move_to (ad->cairo, 0.05 * d, (0.085 + 0.5 - (i/10)) * d);
+		cairo_move_to (ad->cairo, 0.03 * d, (0.085 + 0.5 - (i/10)) * d);
 		cairo_show_text (ad->cairo, maxC);
 	}
 	cairo_set_source_rgb(ad->cairo, 0, 0, 1);
+
+	/*Draw fare labels on graph y-axis*/
 	for(double i = 1; i<=5; i++)
 	{
 		char maxF[8];
 		sprintf(maxF,"%.0f" , (maxFare/5)*i);
 		cairo_text_extents (ad->cairo, maxF, &extents);
-		cairo_move_to (ad->cairo, 0.05 * d, (0.125 + 0.5 - (i/10)) * d);
+		cairo_move_to (ad->cairo, 0.03 * d, (0.125 + 0.5 - (i/10)) * d);
 		cairo_show_text (ad->cairo, maxF);
 	}
 	/********* Total Count Text starts *******/
+
+	cairo_set_source_rgb(ad->cairo, 0, 0, 0);
 	cairo_set_font_size (ad->cairo, 0.055 * d);
+	cairo_move_to (ad->cairo, 0.35 * d, 0.9 * d);
+	cairo_show_text (ad->cairo, "Summary");
+
+	cairo_set_font_size (ad->cairo, 0.045 * d);
+
+	cairo_set_source_rgb(ad->cairo, 1, 0, 0);
+	cairo_move_to (ad->cairo, 0.4 * d, 1.03 * d);
+	cairo_show_text (ad->cairo, "Calorie");
+	cairo_move_to (ad->cairo, 0.4 * d, 1.07 * d);
+	cairo_show_text (ad->cairo, "(Cal)");
+	cairo_set_source_rgb(ad->cairo, 0, 0, 1);
+	cairo_move_to (ad->cairo, 0.6 * d, 1.03 * d);
+	cairo_show_text (ad->cairo, "Fare");
+	cairo_move_to (ad->cairo, 0.6 * d, 1.07 * d);
+	cairo_show_text (ad->cairo, "(Taka)");
 	cairo_set_source_rgb(ad->cairo, 0,0,0);
-	cairo_move_to (ad->cairo, 0.05 * d, 0.9 * d);
+	cairo_move_to (ad->cairo, 0.1 * d, 1.16 * d);
 	cairo_show_text (ad->cairo, "Last Week");
 
-	cairo_set_font_size (ad->cairo, 0.025 * d);
-	cairo_set_source_rgb(ad->cairo, 1,0,0);
-	cairo_move_to (ad->cairo, 0.01 * d, 1.0 * d);
-	cairo_show_text (ad->cairo, "Total Calories Burned:");
+	cairo_set_source_rgb(ad->cairo, 1, 0, 0);
 	char totalWeeklyCalorieS[8];
 	sprintf(totalWeeklyCalorieS,"%.2f" , totalWeeklyCalorie);
 	cairo_text_extents (ad->cairo, totalWeeklyCalorieS, &extents);
-	cairo_move_to (ad->cairo, 0.3 * d, 1.0 * d);
+	cairo_move_to (ad->cairo, 0.38 * d, 1.15 * d);
 	cairo_show_text (ad->cairo, totalWeeklyCalorieS);
-	cairo_move_to (ad->cairo, 0.39 * d, 1.0 * d);
-	cairo_show_text (ad->cairo, "cal");
 
 	cairo_set_source_rgb(ad->cairo, 0, 0, 1);
-	cairo_move_to (ad->cairo, 0.48 * d, 1.0 * d);
-	cairo_show_text (ad->cairo, "Total Money Saved:");
 	char totalWeeklyFareS[8];
 	sprintf(totalWeeklyFareS,"%.2f" , totalWeeklyFare);
 	cairo_text_extents (ad->cairo, totalWeeklyFareS, &extents);
-	cairo_move_to (ad->cairo, 0.74 * d, 1.0 * d);
+	cairo_move_to (ad->cairo, 0.6 * d, 1.15 * d);
 	cairo_show_text (ad->cairo, totalWeeklyFareS);
-	cairo_move_to (ad->cairo, 0.83 * d, 1.0 * d);
-	cairo_show_text (ad->cairo, "taka");
 
-	cairo_set_font_size (ad->cairo, 0.055 * d);
-	cairo_set_source_rgb(ad->cairo, 0,0,0);
-	cairo_move_to (ad->cairo, 0.05 * d, 1.1 * d);
-	cairo_show_text (ad->cairo, "Last Month (Total days:");
+	cairo_set_source_rgb(ad->cairo, 0, 0, 0);
+	cairo_move_to (ad->cairo, 0.1 * d, 1.25 * d);
+	cairo_show_text (ad->cairo, "Last Month");
+	cairo_move_to (ad->cairo, 0.08 * d, 1.3 * d);
+	cairo_show_text (ad->cairo, "(Last ");
+
 	char totalDays[8];
-	sprintf(totalDays,"%d" , totDays);
+	sprintf(totalDays,"%d days)" , totDays);
 	cairo_text_extents (ad->cairo, totalDays, &extents);
-	cairo_move_to (ad->cairo, 0.63 * d, 1.1 * d);
+	cairo_move_to (ad->cairo, 0.19 * d, 1.3 * d);
 	cairo_show_text (ad->cairo, totalDays);
 
-	cairo_move_to (ad->cairo, 0.7 * d, 1.1 * d);
-	cairo_show_text (ad->cairo, ")");
-
-	cairo_set_font_size (ad->cairo, 0.025 * d);
 	cairo_set_source_rgb(ad->cairo, 1,0,0);
-	cairo_move_to (ad->cairo, 0.01 * d, 1.2 * d);
-	cairo_show_text (ad->cairo, "Total Calories Burned:");
 	char totalCalorieS[8];
 	sprintf(totalCalorieS,"%.2f" , totalCalorie);
 	cairo_text_extents (ad->cairo, totalCalorieS, &extents);
-	cairo_move_to (ad->cairo, 0.3 * d, 1.2 * d);
+	cairo_move_to (ad->cairo, 0.38 * d, 1.25 * d);
 	cairo_show_text (ad->cairo, totalCalorieS);
-	cairo_move_to (ad->cairo, 0.39 * d, 1.2 * d);
-	cairo_show_text (ad->cairo, "cal");
 
 	cairo_set_source_rgb(ad->cairo, 0, 0, 1);
-	cairo_move_to (ad->cairo, 0.48 * d, 1.2 * d);
-	cairo_show_text (ad->cairo, "Total Money Saved:");
 	char totalFareS[8];
 	sprintf(totalFareS,"%.2f" , totalFare);
 	cairo_text_extents (ad->cairo, totalFareS, &extents);
-	cairo_move_to (ad->cairo, 0.74 * d, 1.2 * d);
+	cairo_move_to (ad->cairo, 0.6 * d, 1.25 * d);
 	cairo_show_text (ad->cairo, totalFareS);
-	cairo_move_to (ad->cairo, 0.83 * d, 1.2 * d);
-	cairo_show_text (ad->cairo, "taka");
-
 	/********* Total Count Text ends *******/
+
+	char row_countS[8];
+	sprintf(printAvg,"%d" , row_count);
+	cairo_text_extents (ad->cairo, row_countS, &extents);
+	cairo_move_to (ad->cairo, 0.7 * d, 0.9 * d);
+	cairo_show_text (ad->cairo, row_countS);
 
 /********************** text ends *********************/
 
 
-		/****** faded lines start **********/
+	/****** faded lines start **********/
 	cairo_move_to (ad->cairo, 0.1 * d , 0.1 * d );
 	cairo_line_to (ad->cairo, 0.7 * d, 0.1 * d);
 
@@ -416,12 +433,31 @@ void cairo_drawing(void *cairo_data, QueryData *dbData, int row_count)
 
 	/****** faded lines ends **********/
 
+	/****** Summary Line Starts *******/
+	cairo_set_source_rgba(ad->cairo, 0, 0, 0, 1);
+
+	cairo_move_to (ad->cairo, 0.1 * d , 1.1 * d );
+	cairo_line_to (ad->cairo, 0.8 * d, 1.1 * d);
+	cairo_stroke(ad->cairo);
+	cairo_move_to (ad->cairo, 0.1 * d , 1.2 * d );
+	cairo_line_to (ad->cairo, 0.8 * d, 1.2 * d);
+	cairo_stroke(ad->cairo);
+	cairo_move_to (ad->cairo, 0.35 * d , 1 * d );
+	cairo_line_to (ad->cairo, 0.35 * d, 1.3 * d);
+	cairo_stroke(ad->cairo);
+	cairo_move_to (ad->cairo, 0.575 * d , 1 * d );
+	cairo_line_to (ad->cairo, 0.575 * d, 1.3 * d);
+	cairo_stroke(ad->cairo);
+
+	/****** Summary Line Ends *******/
 	cairo_rectangle(ad->cairo, 0, 0, 0.9 * d, 0.8 * d);
 	cairo_set_source_rgb(ad->cairo, 0, 0, 0);
 	cairo_stroke(ad->cairo);
 	cairo_surface_flush(ad->surface);
 
 	/* display cairo drawin on screen */
+
+
 	unsigned char * imageData = cairo_image_surface_get_data(cairo_get_target(ad->cairo));
 	evas_object_image_data_set(ad->img, imageData);
 	evas_object_image_data_update_add(ad->img, 0, 0, ad->width, ad->height);

@@ -392,6 +392,8 @@ Eina_Bool view_history_create(void *data)
 	Evas_Object *nf = (Evas_Object *)data;
 	appdata_s ad = {0,};
 
+	elm_config_accel_preference_set("opengl");
+
 	ad.img = evas_object_image_add(evas_object_evas_get(nf));
 	evas_object_show(ad.img);
 

@@ -425,8 +425,8 @@ void populateDb(void)
 	int ret;
 	char dateTime[14];
 
-	for(int i = 2; i <= 29; i++){
-		if (i == 25) {
+	for(int i = 23; i <= 29; i++){
+		if (i == 25 || i == 27) {
 			continue;
 		}
 
@@ -437,7 +437,7 @@ void populateDb(void)
 		steps = (int) distance * 2;
 		calories = 0.0215 * tempDistance * tempDistance * tempDistance
 				- 0.1765 * tempDistance * tempDistance + 0.8710 * tempDistance
-				+ 1.4577 * 70 * 2;
+				+ 1.4577 * 70 * (tempDistance/3);
 		fare = (int) (10 + (tempDistance - 1.0) * 5);
 
 		/*prepare query for INSERT operation*/
