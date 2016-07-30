@@ -72,3 +72,17 @@
 211	380	0	avoidrickshaw	b1888967ff40a26d
 2	213	0	src/Sqlitedbhelper.o	10a86cb159511b97
 213	389	0	avoidrickshaw	b1888967ff40a26d
+1	392	0	src/data.o	ed7aedc0beca367a
+1	436	0	src/graph.o	bc827cac985e671c
+1	438	0	src/main.o	a8205f81be2dd9fc
+2	487	0	src/Sqlitedbhelper.o	10a86cb159511b97
+3	265	0	src/main.o	a8205f81be2dd9fc
+3	351	0	src/data.o	ed7aedc0beca367a
+3	246	0	src/main.o	a8205f81be2dd9fc
+2	347	0	src/data.o	ed7aedc0beca367a
+3	390	0	src/view.o	5bbd374216a9c9c4
+391	563	0	avoidrickshaw	b1888967ff40a26d
+2	196	0	src/data.o	ed7aedc0beca367a
+196	389	0	avoidrickshaw	b1888967ff40a26d
+2	191	0	src/data.o	ed7aedc0beca367a
+191	357	0	avoidrickshaw	b1888967ff40a26d

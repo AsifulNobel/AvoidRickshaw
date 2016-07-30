@@ -145,13 +145,17 @@ bool data_tracking_start(void)
  */
 bool data_tracking_stop(void)
 {
-	bool track = _data_distance_tracker_stop();
-	bool accel_sensor = _data_acceleration_sensor_stop();
+	if(initialized) {
+		bool track = _data_distance_tracker_stop();
+		bool accel_sensor = _data_acceleration_sensor_stop();
+		initialized = false;
 
-	initialized = false;
-
-	if (track && accel_sensor)
-		return true;
+		if (track && accel_sensor){
+			return true;
+		}
+		else
+			return false;
+	}
 	else
 		return false;
 }
