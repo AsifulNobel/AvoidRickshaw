@@ -410,7 +410,16 @@ Eina_Bool view_history_create(void *data)
 	int num_of_rows = 0;
 	int ret;
 
-	ret = getAllMsgFromDb(&msgdata, &num_of_rows);
+	getTotalMsgItemsCount(&num_of_rows);
+	dlog_print(DLOG_DEBUG, LOG_TAG, "Before Delete, rows: %d", num_of_rows);
+
+	ret = delAllExceptLast28Days();
+	dlog_print(DLOG_DEBUG, LOG_TAG, "Deletion status: %d", ret);
+
+	getTotalMsgItemsCount(&num_of_rows);
+	dlog_print(DLOG_DEBUG, LOG_TAG, "After Delete, rows: %d", num_of_rows);
+
+	ret = getLast28DaysInfo(&msgdata, &num_of_rows);
 
 	dlog_print(DLOG_DEBUG, LOG_TAG, "Querying database...Status: %d", ret);
 	dlog_print(DLOG_DEBUG, LOG_TAG, "Query returned number of rows: %d", num_of_rows);

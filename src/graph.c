@@ -1,10 +1,3 @@
-/*
- * graph.c
- *
- *  Created on: Jul 26, 2016
- *      Author: nobel
- */
-
 #include <graph.h>
 #include "avoidrickshaw.h"
 
@@ -14,13 +7,13 @@ void cairo_drawing(void *cairo_data, QueryData *dbData, int row_count)
 
 	int temp = row_count;
 
-	while(row_count > -1) {
-		dlog_print(DLOG_DEBUG, LOG_TAG, "id: %d, date: %s, distance: %f, steps: %d, calories: %f, fare: %d",
-				dbData[row_count].id, dbData[row_count].date, dbData[row_count].distance,
-				dbData[row_count].steps, dbData[row_count].calories, dbData[row_count].fare);
-
-		row_count--;
-	}
+//	while(row_count > -1) {
+//		dlog_print(DLOG_DEBUG, LOG_TAG, "id: %d, date: %s, distance: %f, steps: %d, calories: %f, fare: %d",
+//				dbData[row_count].id, dbData[row_count].date, dbData[row_count].distance,
+//				dbData[row_count].steps, dbData[row_count].calories, dbData[row_count].fare);
+//
+//		row_count--;
+//	}
 
 	row_count = temp;
 
@@ -355,9 +348,9 @@ void cairo_drawing(void *cairo_data, QueryData *dbData, int row_count)
 	cairo_set_font_size (ad->cairo, 0.045 * d);
 
 	cairo_set_source_rgb(ad->cairo, 1, 0, 0);
-	cairo_move_to (ad->cairo, 0.4 * d, 1.03 * d);
+	cairo_move_to (ad->cairo, 0.38 * d, 1.03 * d);
 	cairo_show_text (ad->cairo, "Calorie");
-	cairo_move_to (ad->cairo, 0.4 * d, 1.07 * d);
+	cairo_move_to (ad->cairo, 0.38 * d, 1.07 * d);
 	cairo_show_text (ad->cairo, "(Cal)");
 	cairo_set_source_rgb(ad->cairo, 0, 0, 1);
 	cairo_move_to (ad->cairo, 0.6 * d, 1.03 * d);
@@ -383,15 +376,11 @@ void cairo_drawing(void *cairo_data, QueryData *dbData, int row_count)
 	cairo_show_text (ad->cairo, totalWeeklyFareS);
 
 	cairo_set_source_rgb(ad->cairo, 0, 0, 0);
-	cairo_move_to (ad->cairo, 0.1 * d, 1.25 * d);
-	cairo_show_text (ad->cairo, "Last Month");
-	cairo_move_to (ad->cairo, 0.08 * d, 1.3 * d);
-	cairo_show_text (ad->cairo, "(Last ");
-
 	char totalDays[8];
-	sprintf(totalDays,"%d days)" , totDays);
+//	sprintf(totalDays,"Last %d days" , totDays);
+	sprintf(totalDays,"Last 28 days"); /*It will always be 28 days, regardless of input data rows*/
 	cairo_text_extents (ad->cairo, totalDays, &extents);
-	cairo_move_to (ad->cairo, 0.19 * d, 1.3 * d);
+	cairo_move_to (ad->cairo, 0.1 * d, 1.25 * d);
 	cairo_show_text (ad->cairo, totalDays);
 
 	cairo_set_source_rgb(ad->cairo, 1,0,0);
@@ -408,12 +397,6 @@ void cairo_drawing(void *cairo_data, QueryData *dbData, int row_count)
 	cairo_move_to (ad->cairo, 0.6 * d, 1.25 * d);
 	cairo_show_text (ad->cairo, totalFareS);
 	/********* Total Count Text ends *******/
-
-	char row_countS[8];
-	sprintf(printAvg,"%d" , row_count);
-	cairo_text_extents (ad->cairo, row_countS, &extents);
-	cairo_move_to (ad->cairo, 0.7 * d, 0.9 * d);
-	cairo_show_text (ad->cairo, row_countS);
 
 /********************** text ends *********************/
 

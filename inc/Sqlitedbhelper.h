@@ -19,8 +19,12 @@ int insertIntoDb(float distance, int steps, float calories, int fare);
 /*update Db row with input data*/
 int updateInfoDb(float distance, int steps, float calories, int fare);
 
-/*fetch all stored message form database. This API will return total number of rows found in this call*/
+/*fetch all stored message from database. This API will return total number of rows found in this call*/
 int getAllMsgFromDb(QueryData **msg_data, int* num_of_rows);
+
+/*fetch all stored message from database 28 days from that day.
+ * This API will return total number of rows found in this call*/
+int getLast28DaysInfo(QueryData **msg_data, int* num_of_rows);
 
 /*fetch stored message form database based on given ID. Application needs to send desired ID*/
 int getMsgById(QueryData **msg_data, int id);
@@ -34,8 +38,17 @@ int deleteMsgById(int id);
 /*fetch all stored message form database*/
 int deleteMsgAll();
 
+/*delete all rows except last 28 days with current day included*/
+int delAllExceptLast28Days();
+
 /*count number of stored msg in the database and will return the total number*/
 int getTotalMsgItemsCount(int* num_of_rows);
 
 /*Db Populate function*/
 void populateDb(void);
+
+int countLeapDays(int m, int y);
+
+void getNumericDate(int *d, int *m, int *y, const char *day);
+
+int getDays(const char* day1, const char* day2);

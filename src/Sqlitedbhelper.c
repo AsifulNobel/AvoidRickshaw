@@ -1,4 +1,5 @@
 #include <string.h>
+#include <time.h>
 #include <sqlite3.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -8,7 +9,6 @@
 #include <dlog.h>
 #include "avoidrickshaw.h"
 #include "Sqlitedbhelper.h"
-#include <time.h>
 
 #define DB_NAME "sample.db"
 #define TABLE_NAME "infoTable"
@@ -175,18 +175,56 @@ int updateInfoDb(float distance, int steps, float calories, int fare)
 /***************************************************/
 
 QueryData *qrydata;
+char *tmp_date;
 
 /*this callback will be called for each row fetched from database. we need to handle retrieved elements for each row manually and store data for further use*/
 static int selectAllItemcb(void *data, int argc, char **argv, char **azColName){
-        /*
-        * SQLite queries return data in argv parameter as  character pointer */
-        /*prepare a temporary structure*/
-	QueryData *temp = (QueryData*)realloc(qrydata, ((select_row_count + 1) * sizeof(QueryData)));
+	/*
+	* SQLite queries return data in argv parameter as  character pointer */
+	/*prepare a temporary structure*/
+	QueryData *temp;
+	int dayDiff;
+
+	if (select_row_count == 0)
+		dayDiff = getDays(argv[0], tmp_date) + 1;
+	else
+		dayDiff = getDays(argv[0], tmp_date);
+
+	dlog_print(DLOG_DEBUG, LOG_TAG, "%s -> %s -> %d", argv[0], tmp_date, dayDiff);
+
+	if (dayDiff > 1) {
+
+		temp = (QueryData*)realloc(qrydata, ((select_row_count + dayDiff) * sizeof(QueryData)));
+
+//		int max;
+//
+//		if (dayDiff >= 7){
+//			max = dayDiff;
+//		}
+//		else
+//			max = dayDiff - 1;
+
+		for(int i = 0; i < dayDiff; i++){
+			strcpy(temp[select_row_count+i].date, "0");
+			temp[select_row_count+i].distance = 0.0;
+			temp[select_row_count+i].fare = 0;
+			temp[select_row_count+i].calories = 0.0;
+			temp[select_row_count+i].steps = 0;
+			temp[select_row_count+i].id = 0;
+		}
+		select_row_count += dayDiff-1;
+		strcpy(tmp_date, argv[0]);
+	}
+	else {
+		temp = (QueryData*) realloc(qrydata, ((select_row_count + 1) * sizeof(QueryData)));
+		strcpy(tmp_date, argv[0]);
+	}
 
 	if(temp == NULL){
 		dlog_print(DLOG_ERROR, LOG_TAG, "Cannot reallocate memory for QueryData");
 		return SQLITE_ERROR;
-	} else {
+	}
+	else {
         /*store data into temp structure*/
 		strcpy(temp[select_row_count].date, argv[0]);
 		temp[select_row_count].distance = atof(argv[1]);
@@ -195,14 +233,45 @@ static int selectAllItemcb(void *data, int argc, char **argv, char **azColName){
 		temp[select_row_count].steps = atoi(argv[4]);
 		temp[select_row_count].id = atoi(argv[5]);
 
-                /*copy temp structure into main sturct*/
 		qrydata = temp;
 	}
+	temp = NULL;
+	free(temp);
 
 	select_row_count++; /*keep row count*/
 
-   return SQLITE_OK;
+	return SQLITE_OK;
 }
+
+static int selectItemcb(void *data, int argc, char **argv, char **azColName){
+	/*
+	* SQLite queries return data in argv parameter as  character pointer */
+	/*prepare a temporary structure*/
+	QueryData *temp = (QueryData*)realloc(qrydata, ((select_row_count + 1) * sizeof(QueryData)));
+
+	if(temp == NULL){
+		dlog_print(DLOG_ERROR, LOG_TAG, "Cannot reallocate memory for QueryData");
+		return SQLITE_ERROR;
+	}
+	else {
+        /*store data into temp structure*/
+		strcpy(temp[select_row_count].date, argv[0]);
+		temp[select_row_count].distance = atof(argv[1]);
+		temp[select_row_count].fare = atoi(argv[2]);
+		temp[select_row_count].calories = atof(argv[3]);
+		temp[select_row_count].steps = atoi(argv[4]);
+		temp[select_row_count].id = atoi(argv[5]);
+
+		qrydata = temp;
+	}
+	temp = NULL;
+	free(temp);
+
+	select_row_count++; /*keep row count*/
+
+	return SQLITE_OK;
+}
+
 
 int getAllMsgFromDb(QueryData **msg_data, int* num_of_rows)
 {
@@ -216,7 +285,7 @@ int getAllMsgFromDb(QueryData **msg_data, int* num_of_rows)
 	char *ErrMsg;
 	select_row_count = 0;
 
-    ret = sqlite3_exec(avoidRickshawDb, sql, selectAllItemcb, (void*)msg_data, &ErrMsg);
+    ret = sqlite3_exec(avoidRickshawDb, sql, selectItemcb, (void*)msg_data, &ErrMsg);
 
     if (ret != SQLITE_OK)
 	{
@@ -235,6 +304,52 @@ int getAllMsgFromDb(QueryData **msg_data, int* num_of_rows)
    return SQLITE_OK;
 }
 
+/*
+ * @brief Gets data of last 28 days from Database with current date included.
+ */
+int getLast28DaysInfo(QueryData **msg_data, int* num_of_rows)
+{
+	if(opendb() != SQLITE_OK) /*create database instance*/
+		return SQLITE_ERROR;
+
+	qrydata = (QueryData *) calloc (1, sizeof(QueryData)); /*preparing local querydata struct*/
+
+	char *sql = "SELECT * FROM infoTable WHERE "\
+			COL_DATE" BETWEEN date('now','-27 days')"
+					" AND date('now') ORDER BY ID DESC;";
+
+	size_t len = sizeof("YYYY-MM-DD");
+	tmp_date = (char *) calloc(1, len);
+	time_t now = time(NULL);
+	struct tm *t = localtime(&now);
+	strftime(tmp_date, len, "%Y-%m-%d", t);
+
+	int ret;
+	char *ErrMsg;
+	select_row_count = 0;
+
+    ret = sqlite3_exec(avoidRickshawDb, sql, selectAllItemcb, (void*)msg_data, &ErrMsg);
+
+    if (ret != SQLITE_OK)
+	{
+	   dlog_print(DLOG_ERROR, LOG_TAG, "Select query execution error [%s]", ErrMsg);
+	   sqlite3_free(ErrMsg);
+	   sqlite3_close(avoidRickshawDb); /*close db for failed case*/
+
+	   return SQLITE_ERROR;
+	}
+
+   *msg_data = qrydata;
+   *num_of_rows = select_row_count;
+   tmp_date = NULL;
+   free(tmp_date);
+
+   sqlite3_close(avoidRickshawDb); /*close db for success case*/
+
+   return SQLITE_OK;
+}
+
+
 int getMsgById(QueryData **msg_data, int id)
 {
 	if(opendb() != SQLITE_OK) /*create database instance*/
@@ -242,30 +357,26 @@ int getMsgById(QueryData **msg_data, int id)
 
 	qrydata = (QueryData *) calloc (1, sizeof(QueryData));
 
-   char sql[BUFLEN];
-   snprintf(sql, BUFLEN, "SELECT * FROM infoTable where ID=%d;", id);
+	char sql[BUFLEN];
+	snprintf(sql, BUFLEN, "SELECT * FROM infoTable where ID=%d;", id);
 
-   int ret = 0;
-   char *ErrMsg;
+	int ret = 0;
+	char *ErrMsg;
 
     ret = sqlite3_exec(avoidRickshawDb, sql, selectAllItemcb, (void*)msg_data, &ErrMsg);
 	if (ret != SQLITE_OK)
 	{
-//	   DBG("select query execution error [%s]", ErrMsg);
 	   sqlite3_free(ErrMsg);
 	   sqlite3_close(avoidRickshawDb);
 
 	   return SQLITE_ERROR;
 	}
 
-//	DBG("select query execution success!");
-
-        /*assign fetched data into caller's struct*/
 	*msg_data = qrydata;
 
 	sqlite3_close(avoidRickshawDb); /*close db*/
 
-   return SQLITE_OK;
+	return SQLITE_OK;
 }
 
 int getMsgByCurrentDate(QueryData **msg_data, int* num_of_rows)
@@ -286,7 +397,7 @@ int getMsgByCurrentDate(QueryData **msg_data, int* num_of_rows)
 			COL_DATE"=%s;", dateTime);
 
 
-	ret = sqlite3_exec(avoidRickshawDb, sqlBuff, selectAllItemcb, (void*)msg_data, &ErrMsg);
+	ret = sqlite3_exec(avoidRickshawDb, sqlBuff, selectItemcb, (void*)msg_data, &ErrMsg);
 
 	if (ret != SQLITE_OK)
 	{
@@ -328,7 +439,6 @@ int deleteMsgById(int id)
    ret = sqlite3_exec(avoidRickshawDb, sql, deletecb, &counter, &ErrMsg);
 	if (ret != SQLITE_OK)
 	{
-//		ERR("Delete Error! [%s]", sqlite3_errmsg(avoidRickshawDb));
 	   sqlite3_free(ErrMsg);
 	   sqlite3_close(avoidRickshawDb);
 
@@ -336,6 +446,33 @@ int deleteMsgById(int id)
 	}
 
 	sqlite3_close(avoidRickshawDb);
+
+   return SQLITE_OK;
+}
+
+int delAllExceptLast28Days()
+{
+	if(opendb() != SQLITE_OK) /*create database instance*/
+		return SQLITE_ERROR;
+
+   char *sql = "DELETE FROM infoTable WHERE "\
+   			COL_DATE" < date('now','-27 days') OR "
+   			COL_DATE" > date('now');";
+
+   int counter = 0, ret = 0;
+   char *ErrMsg;
+
+   ret = sqlite3_exec(avoidRickshawDb, sql, deletecb, &counter, &ErrMsg);
+   if (ret != SQLITE_OK)
+   {
+	  dlog_print(DLOG_ERROR, LOG_TAG, "Delete query execution error [%s]", ErrMsg);
+	  sqlite3_free(ErrMsg);
+	  sqlite3_close(avoidRickshawDb);
+
+	  return SQLITE_ERROR;
+   }
+
+   sqlite3_close(avoidRickshawDb);
 
    return SQLITE_OK;
 }
@@ -374,6 +511,7 @@ static int row_count_cb(void *data, int argc, char **argv, char **azColName)
 
 	return 0;
 }
+
 int getTotalMsgItemsCount(int* num_of_rows)
 {
 	if(opendb() != SQLITE_OK) /*create database instance*/
@@ -387,14 +525,11 @@ int getTotalMsgItemsCount(int* num_of_rows)
    ret = sqlite3_exec(avoidRickshawDb, sql, row_count_cb, NULL, &ErrMsg);
 	if (ret != SQLITE_OK)
 	{
-//		ERR("Count Error! [%s]", sqlite3_errmsg(avoidRickshawDb));
 	    sqlite3_free(ErrMsg);
 	    sqlite3_close(avoidRickshawDb);
 
 	    return SQLITE_ERROR;
 	}
-
-//	DBG("Total row found[%d]", g_row_count);
 
 	sqlite3_close(avoidRickshawDb);
 
@@ -425,12 +560,21 @@ void populateDb(void)
 	int ret;
 	char dateTime[14];
 
-	for(int i = 23; i <= 29; i++){
-		if (i == 25 || i == 27) {
-			continue;
-		}
+	for(int i = 1; i <= 31; i++){
+//		if (i == 25 || i == 27 || i == 28 || i == 15 | i == 4) {
+//			continue;
+//		}
+//		if (i >= 25 && i <= 30) {
+//			continue;
+//		}
+//		if (i >= 25 && i <= 31) {
+//			continue;
+//		}
+//		if (i >= 26 && i <= 31) {
+//			continue;
+//		}
 
-		sprintf(dateTime, "'2015-07-%02d'", i);
+		sprintf(dateTime, "'2016-07-%02d'", i);
 
 		distance = (float) ((rand() % 19000) + 1001.0); //Distance between 1 km and 20 km
 		tempDistance = distance / 1000;
@@ -462,4 +606,56 @@ void populateDb(void)
 	}
 
 	sqlite3_close(avoidRickshawDb); /*close db instance for success case*/
+}
+
+int countLeapDays(int m, int y){
+    if (m <= 2)
+        y--;
+
+    return y/4 - y/100 + y/400;
+}
+
+void getNumericDate(int *d, int *m, int *y, const char *day){
+    char *temp = (char *) calloc(1, 5);
+
+    strncpy(temp, &day[0], 4);
+    *y = atoi(temp);
+    temp = NULL;
+
+    temp = calloc(1, 3);
+    strncpy(temp, &day[5], 2);
+    *m = atoi(temp);
+    temp = NULL;
+
+    temp = calloc(1, 3);
+    strncpy(temp, &day[8], 2);
+    *d = atoi(temp);
+
+    temp = NULL;
+    free(temp);
+}
+
+int getDays(const char* day1, const char* day2){
+    int daysOfMonth[12] = {31, 28, 31, 30, 31, 30,
+                           31, 31, 30, 31, 30, 31};
+    int n1, d1, m1, y1;
+    int n2, d2, m2, y2;
+
+    getNumericDate(&d1, &m1, &y1, day1);
+    getNumericDate(&d2, &m2, &y2, day2);
+
+    n1 = y1*365 + d1;
+    n2 = y2*365 + d2;
+
+    int i;
+    for (i=0; i<m1 - 1; i++)
+        n1 += daysOfMonth[i];
+
+    for (i=0; i<m2 - 1; i++)
+        n2 += daysOfMonth[i];
+
+    n1 += countLeapDays(m1, y1);
+    n2 += countLeapDays(m2, y2);
+
+    return (n2 - n1);
 }
