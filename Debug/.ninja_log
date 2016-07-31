@@ -42,3 +42,10 @@
 2	229	0	src/graph.o	bc827cac985e671c
 2	231	0	src/Sqlitedbhelper.o	10a86cb159511b97
 231	402	0	avoidrickshaw	b1888967ff40a26d
+2	4060	0	src/data.o	ed7aedc0beca367a
+2	4061	0	src/graph.o	bc827cac985e671c
+2	4062	0	src/Sqlitedbhelper.o	10a86cb159511b97
+2	4064	0	src/view.o	5bbd374216a9c9c4
+4064	6624	0	avoidrickshaw	b1888967ff40a26d
+2	254	0	src/Sqlitedbhelper.o	10a86cb159511b97
+254	438	0	avoidrickshaw	b1888967ff40a26d

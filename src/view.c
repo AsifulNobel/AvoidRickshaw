@@ -40,9 +40,11 @@ static void _save_cb(void *data, Evas_Object *obj, void *event);
 static void show_toast_popup(void *parent, char *toast_text);
 static void popup_timeout_cb(void *data, Evas_Object *obj, void *event_info);
 
-
-static Eina_Bool
-naviframe_pop_cb(void *data, Elm_Object_Item *it)
+/**
+ * @brief Callback function that is invoked when initial naviframe view is popped from stack
+ * @return 'EINA_FALSE' if operation of exiting app is unsuccessful.
+ */
+static Eina_Bool naviframe_pop_cb(void *data, Elm_Object_Item *it)
 {
 	ui_app_exit();
 
@@ -178,6 +180,7 @@ Evas_Object *view_create_layout(Evas_Object *parent)
 	elm_object_part_content_set(layout, PART_STOP_BTN, stop_button);
 	elm_object_part_content_set(layout, PART_SHOW_HISTORY_BTN, history_button);
 
+	/* Add callback function for settings button */
 	eext_object_event_callback_add(layout, EEXT_CALLBACK_MORE, _settings_cb, parent);
 
 	evas_object_show(layout);
@@ -256,7 +259,7 @@ void view_set_total_distance(double distance)
 
 /**
  * @brief Displays the total rickshaw fare saved in current session.
- * @param[in] fare The total fare amount.
+ * @param[in] fare --> The total fare amount.
  */
 void view_set_fare(int fare)
 {
@@ -265,6 +268,10 @@ void view_set_fare(int fare)
 	elm_object_part_text_set(s_info.layout, PART_FARE_TEXT, fare_string);
 }
 
+/**
+ * @brief Display total amount of calories burnt in current session.
+ * @param[in] calories --> The total amount of calories burnt.
+ */
 void view_set_calories(double calories)
 {
 	char calories_string[BUF_MAX] = {0, };
@@ -387,23 +394,34 @@ static void _show_history_cb(void *data, Evas_Object *obj, void *event)
 	}
 }
 
+/**
+ * @brief Create view for showing user's history of usage.
+ */
 Eina_Bool view_history_create(void *data)
 {
 	Evas_Object *nf = (Evas_Object *)data;
 	appdata_s ad = {0,};
 
+	/* Cairo library uses GPU for drawing graph */
 	elm_config_accel_preference_set("opengl");
 
+	/* Adds image for drawing cairo objects */
 	ad.img = evas_object_image_add(evas_object_evas_get(nf));
+
+	// Show added image
 	evas_object_show(ad.img);
 
+	// Gets parent view width and height.
 	evas_object_geometry_get(nf, NULL, NULL, &ad.width, &ad.height);
+
+	// Sets image size according to view width and height
 	evas_object_image_size_set(ad.img, ad.width, ad.height);
 	evas_object_image_fill_set(ad.img, 0, 0, ad.width, ad.height);
 
 	ad.surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, ad.width, ad.height);
 	ad.cairo = cairo_create(ad.surface);
 
+	// DataType for querying database
 	QueryData* msgdata;
 	msgdata = (QueryData*) calloc (1, sizeof(QueryData));
 
@@ -411,13 +429,19 @@ Eina_Bool view_history_create(void *data)
 	int ret;
 
 	getTotalMsgItemsCount(&num_of_rows);
-	dlog_print(DLOG_DEBUG, LOG_TAG, "Before Delete, rows: %d", num_of_rows);
 
-	ret = delAllExceptLast28Days();
-	dlog_print(DLOG_DEBUG, LOG_TAG, "Deletion status: %d", ret);
+	// Deletes history from Database, if limit is reached
+	if (num_of_rows > 70) {
+		dlog_print(DLOG_DEBUG, LOG_TAG, "Before Delete, rows: %d", num_of_rows);
 
-	getTotalMsgItemsCount(&num_of_rows);
-	dlog_print(DLOG_DEBUG, LOG_TAG, "After Delete, rows: %d", num_of_rows);
+		ret = delAllExceptLast28Days();
+		dlog_print(DLOG_DEBUG, LOG_TAG, "Deletion status: %d", ret);
+	}
+
+	// If starting database for first time, populate database for App Demo.
+	if (num_of_rows == 0) {
+		populateDb();
+	}
 
 	ret = getLast28DaysInfo(&msgdata, &num_of_rows);
 
@@ -428,6 +452,7 @@ Eina_Bool view_history_create(void *data)
 	num_of_rows--;
 	cairo_drawing(&ad, msgdata, num_of_rows);
 
+	// Push view to naviframe stack of views
 	elm_naviframe_item_push(nf, "History", NULL, NULL, ad.img, NULL);
 
 	return EINA_TRUE;
@@ -456,6 +481,9 @@ static Evas_Object *_create_button(Evas_Object *parent, char *btn_text, Evas_Sma
 	return btn;
 }
 
+/**
+ * @brief Invoked when 'Menu' button is pressed
+ */
 static void _settings_cb(void *data, Evas_Object *obj, void *event)
 {
 	dlog_print(DLOG_DEBUG, LOG_TAG, "Settings button pressed.");
@@ -464,7 +492,9 @@ static void _settings_cb(void *data, Evas_Object *obj, void *event)
 		dlog_print(DLOG_DEBUG, LOG_TAG, "Failed to create settings view.");
 }
 
-
+/**
+ * @brief Creates settings view for weight input
+ */
 Eina_Bool view_settings_create(void *data)
 {
 	Evas_Object *nf = (Evas_Object *)data;
@@ -481,6 +511,9 @@ Eina_Bool view_settings_create(void *data)
 	return EINA_TRUE;
 }
 
+/**
+ * @brief Adds EDC layout to settings view.
+ */
 Evas_Object *view_create_settings_layout(Evas_Object *parent)
 {
 	Evas_Object *layout = NULL;
@@ -514,11 +547,13 @@ Evas_Object *view_create_settings_layout(Evas_Object *parent)
 
 	preference_is_existing(key_name, &existing);
 
+	// Adds weight info to app preference.
 	if (existing) {
 		preference_get_double(key_name, &weight);
 		snprintf(weight_str, BUF_MAX, "%.0lf", weight);
 	}
 	else {
+		// Default weight info
 		weight = 70.0;
 		snprintf(weight_str, BUF_MAX, "%.0lf", weight);
 	}
@@ -546,13 +581,16 @@ Evas_Object *view_create_settings_layout(Evas_Object *parent)
 	return layout;
 }
 
+/**
+ * @brief Callback function that gets invoked when 'clicked' event is fired by 'Save' button
+ */
 static void _save_cb(void *data, Evas_Object *obj, void *event)
 {
 	Evas_Object *weight_entry = data;
 
 	dlog_print(DLOG_DEBUG, LOG_TAG, "Save Button pressed!");
 
-	const char key_name[] = "weight\0";
+	const char key_name[] = "weight\0"; // weight-info key for saving weight data in app preference
 	char *ptr;
 	double weight = 0.0;
 	const char *weight_str = elm_entry_entry_get(weight_entry);
@@ -569,6 +607,9 @@ static void _save_cb(void *data, Evas_Object *obj, void *event)
 		show_toast_popup(s_info.navi, "Error! Cannot Save Weight Info!");
 }
 
+/**
+ * @brief Adds Toast popup to parent object
+ */
 static void show_toast_popup(void *parent, char *toast_text)
 {
 	Evas_Object *popup;
@@ -586,6 +627,9 @@ static void show_toast_popup(void *parent, char *toast_text)
 	evas_object_show(popup);
 }
 
+/**
+ * @brief Callback function for doing things, when popup's 'timeout' event is fired
+ */
 static void popup_timeout_cb(void *data, Evas_Object *obj, void *event_info)
 {
 	evas_object_del(obj);

@@ -7,6 +7,7 @@ void cairo_drawing(void *cairo_data, QueryData *dbData, int row_count)
 
 	int temp = row_count;
 
+	// Loop for logging received data
 //	while(row_count > -1) {
 //		dlog_print(DLOG_DEBUG, LOG_TAG, "id: %d, date: %s, distance: %f, steps: %d, calories: %f, fare: %d",
 //				dbData[row_count].id, dbData[row_count].date, dbData[row_count].distance,
@@ -439,8 +440,6 @@ void cairo_drawing(void *cairo_data, QueryData *dbData, int row_count)
 	cairo_surface_flush(ad->surface);
 
 	/* display cairo drawin on screen */
-
-
 	unsigned char * imageData = cairo_image_surface_get_data(cairo_get_target(ad->cairo));
 	evas_object_image_data_set(ad->img, imageData);
 	evas_object_image_data_update_add(ad->img, 0, 0, ad->width, ad->height);

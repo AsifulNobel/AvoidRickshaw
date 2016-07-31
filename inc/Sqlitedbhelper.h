@@ -46,9 +46,3 @@ int getTotalMsgItemsCount(int* num_of_rows);
 
 /*Db Populate function*/
 void populateDb(void);
-
-int countLeapDays(int m, int y);
-
-void getNumericDate(int *d, int *m, int *y, const char *day);
-
-int getDays(const char* day1, const char* day2);

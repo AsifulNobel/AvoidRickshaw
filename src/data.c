@@ -81,10 +81,8 @@ Eina_Bool data_initialize(void)
 	 * If you need to initialize application data,
 	 * please use this function.
 	 */
-	// commented for Akib
-//	if (data_gps_enabled_get())
-//		_data_distance_tracker_init();
-	_data_distance_tracker_init();
+	if (data_gps_enabled_get())
+		_data_distance_tracker_init();
 
 	return _data_acceleration_sensor_init_handle();
 }
@@ -107,9 +105,7 @@ void data_finalize(void)
  */
 bool data_tracking_start(void)
 {
-//	commented for Akib
-//	if(!initialized && data_gps_enabled_get()){
-	if(!initialized){
+	if(!initialized && data_gps_enabled_get()){
 		bool track = _data_distance_tracker_start();
 		bool accel_sensor = _data_acceleration_sensor_start();
 		s_info.start_time = ecore_time_get();
@@ -178,11 +174,20 @@ void data_set_steps_count_changed_callback(data_gps_steps_count_callback_t steps
 	s_info.steps_count_changed_callback = steps_count_callback;
 }
 
+/*
+ * @brief Attaches fare count changed callback function.
+ * @param[in] fare_count_callback The callback function to be attached.
+ */
 void data_set_fare_changed_callback(data_fare_count_callback_t fare_count_callback)
 {
 	s_info.fare_count_changed_callback = fare_count_callback;
 }
 
+
+/*
+ * @brief Attaches calorie count changed callback function.
+ * @param[in] calorie_count_callback The callback function to be attached.
+ */
 void data_set_calorie_changed_callback(data_calorie_count_callback_t calorie_count_callback)
 {
 	s_info.calorie_count_changed_callback = calorie_count_callback;
@@ -216,6 +221,7 @@ bool data_gps_enabled_get(void)
 /**
  * @brief Function invoked after updating total distance to count Rickshaw fare. After calculating
  * fare, total fare is updated in view.
+ * @return Calculated fare.
  */
 int count_fare(void) {
 	int baseFare = 10;
@@ -561,44 +567,34 @@ void _data_save_db(void) {
 	}
 
 	dlog_print(DLOG_DEBUG, LOG_TAG, "Saving session data in database...Status: %d", ret);
-
-	ret = getAllMsgFromDb(&msgdata, &num_rows);
-
-	dlog_print(DLOG_DEBUG, LOG_TAG, "Querying database...Status: %d", ret);
-	dlog_print(DLOG_DEBUG, LOG_TAG, "Query returned number of rows: %d", num_rows);
-
-	// num_of_rows is incremented by extra 1 by the callback function selectAllItemcb
-	num_rows--;
-	while(num_rows > -1) {
-		dlog_print(DLOG_DEBUG, LOG_TAG, "id: %d, date: %s, distance: %f, steps: %d, calories: %f, fare: %d",
-				msgdata[num_rows].id, msgdata[num_rows].date, msgdata[num_rows].distance,
-				msgdata[num_rows].steps, msgdata[num_rows].calories, msgdata[num_rows].fare);
-
-		num_rows--;
-	}
 }
 
 /*
- * @Brief Callback function for showing session info in database through log.
+ * @Brief Callback function for 'Show History' button
  */
 void data_show_db(void) {
-	dlog_print(DLOG_DEBUG, LOG_TAG, "Show History button clicked!");
+	dlog_print(DLOG_DEBUG, LOG_TAG, "'Show History' button clicked!");
 }
 
+/*
+ * @brief Calculates burnt calories while walking or running.
+ *
+ */
 static void calorieBurner()
 {
 	double tempDistance = s_info.total_distance / 1000;
-    double elapsedTime = ecore_time_get();
+    double elapsedTime = ecore_time_get(); // Gets current time in seconds
 
     elapsedTime -= s_info.start_time;
-    elapsedTime = elapsedTime / 3600;
+    elapsedTime = elapsedTime / 3600; // converts elapsed time in seconds to hour
 
-    dlog_print(DLOG_DEBUG, LOG_TAG, "elapsed time; %lf", elapsedTime);
+    dlog_print(DLOG_DEBUG, LOG_TAG, "elapsed time: %lf hour", elapsedTime);
 
     s_info.calories = 0.0215 * tempDistance * tempDistance * tempDistance
     		- 0.1765 * tempDistance * tempDistance + 0.8710 * tempDistance
     		+ 1.4577 * s_info.weight * elapsedTime ;
 
+    // If travelled distance is non-zero, then change 'calories burnt' value shown in view
     if (s_info.total_distance > 0)
     	s_info.calorie_count_changed_callback(s_info.calories);
 }

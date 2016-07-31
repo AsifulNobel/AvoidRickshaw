@@ -25,8 +25,17 @@
 
 #define BUFLEN 500 /*assume buffer length for query string's size.*/
 
+// Helper functions for counting days between two date of format YYYY-MM-DD
+int countLeapDays(int m, int y);
+void getNumericDate(int *d, int *m, int *y, const char *day);
+int getDays(const char* day1, const char* day2);
+
+
 sqlite3 *avoidRickshawDb; /*name of database*/
+QueryData *qrydata;
 int select_row_count = 0;
+int g_row_count = 0;
+char *tmp_date;
 
 /*open database instance*/
 int opendb()
@@ -39,18 +48,23 @@ int opendb()
 	 strcpy(path,dataPath);
 	 strncat(path, DB_NAME, size);
 
-//	 DBG("DB Path = [%s]", path); /*prepared full path, database will be stored there*/
-
 	 int ret = sqlite3_open_v2( path , &avoidRickshawDb, SQLITE_OPEN_CREATE|SQLITE_OPEN_READWRITE, NULL);
 	 if(ret != SQLITE_OK)
-//		ERR("DB Create Error! [%s]", sqlite3_errmsg(avoidRickshawDb));
 
 	 free(dataPath);
 	 free(path);
-         /*didn't close database instance as this will be handled by caller e.g. insert, delete*/
+
+	 /*didn't close database instance as this will be handled by caller e.g. insert, delete*/
+
 	 return ret;
 }
 
+/**
+ * @brief Creates Table for storing app info in Database
+ * @return Status SQLITE_ERROR or SQLITE_OK
+ * SQLITE_ERROR = 1
+ * SQLITE_OK = 0
+ */
 int initdb()
 {
 	if (opendb() != SQLITE_OK) /*create database instance*/
@@ -68,8 +82,6 @@ int initdb()
 			COL_STP" INTEGER NOT NULL,"\
 			COL_ID" INTEGER PRIMARY KEY AUTOINCREMENT);";
 
-   dlog_print(DLOG_DEBUG, LOG_TAG, "create table query : %s", sql);
-
    ret = sqlite3_exec(avoidRickshawDb, sql, NULL, 0, &ErrMsg); /*execute query*/
 
    if(ret != SQLITE_OK)
@@ -84,9 +96,7 @@ int initdb()
    dlog_print(DLOG_DEBUG, LOG_TAG, "Db Table created successfully!");
    sqlite3_close(avoidRickshawDb); /*close the db instance as operation is done here*/
 
-   /*Dummy data populate*/
    dlog_print(DLOG_DEBUG, LOG_TAG, "Closed Db instance!");
-   populateDb();
 
    return SQLITE_OK;
 }
@@ -100,6 +110,18 @@ static int insertcb(void *NotUsed, int argc, char **argv, char **azColName){
    return 0;
 }
 
+/**
+ * @brief Insert info in Database
+ *
+ * @param[in] distance [float Type]
+ * @param[in] steps [int Type]
+ * @param[in] calories [float Type]
+ * @param[in] fare [int Type]
+ *
+ * @return Status SQLITE_ERROR or SQLITE_OK
+ * SQLITE_ERROR = 1
+ * SQLITE_OK = 0
+ */
 int insertIntoDb(float distance, int steps, float calories, int fare)
 {
 	if(opendb() != SQLITE_OK) /*create database instance*/
@@ -122,8 +144,6 @@ int insertIntoDb(float distance, int steps, float calories, int fare)
 			" VALUES(%s, %f, %d, %f, %d);", /*didn't include id as it is autoincrement*/
 					dateTime, distance, fare, calories, steps);
 
-	dlog_print(DLOG_DEBUG, LOG_TAG, "Insert query = [%s]", sqlbuff);
-
 	ret = sqlite3_exec(avoidRickshawDb, sqlbuff, insertcb, 0, &ErrMsg); /*execute query*/
 	if (ret != SQLITE_OK)
 	{
@@ -136,6 +156,18 @@ int insertIntoDb(float distance, int steps, float calories, int fare)
 	return SQLITE_OK;
 }
 
+/**
+ * @brief Update info in Database
+ *
+ * @param[in] distance [float Type]
+ * @param[in] steps [int Type]
+ * @param[in] calories [float Type]
+ * @param[in] fare [int Type]
+ *
+ * @return Status SQLITE_ERROR or SQLITE_OK
+ * SQLITE_ERROR = 1
+ * SQLITE_OK = 0
+ */
 int updateInfoDb(float distance, int steps, float calories, int fare)
 {
 	if(opendb() != SQLITE_OK) /*create database instance*/
@@ -173,10 +205,6 @@ int updateInfoDb(float distance, int steps, float calories, int fare)
 }
 
 /***************************************************/
-
-QueryData *qrydata;
-char *tmp_date;
-
 /*this callback will be called for each row fetched from database. we need to handle retrieved elements for each row manually and store data for further use*/
 static int selectAllItemcb(void *data, int argc, char **argv, char **azColName){
 	/*
@@ -190,19 +218,9 @@ static int selectAllItemcb(void *data, int argc, char **argv, char **azColName){
 	else
 		dayDiff = getDays(argv[0], tmp_date);
 
-	dlog_print(DLOG_DEBUG, LOG_TAG, "%s -> %s -> %d", argv[0], tmp_date, dayDiff);
-
 	if (dayDiff > 1) {
 
 		temp = (QueryData*)realloc(qrydata, ((select_row_count + dayDiff) * sizeof(QueryData)));
-
-//		int max;
-//
-//		if (dayDiff >= 7){
-//			max = dayDiff;
-//		}
-//		else
-//			max = dayDiff - 1;
 
 		for(int i = 0; i < dayDiff; i++){
 			strcpy(temp[select_row_count+i].date, "0");
@@ -243,6 +261,7 @@ static int selectAllItemcb(void *data, int argc, char **argv, char **azColName){
 	return SQLITE_OK;
 }
 
+/*this callback will be called for each row fetched from database. we need to handle retrieved elements for each row manually and store data for further use*/
 static int selectItemcb(void *data, int argc, char **argv, char **azColName){
 	/*
 	* SQLite queries return data in argv parameter as  character pointer */
@@ -272,7 +291,9 @@ static int selectItemcb(void *data, int argc, char **argv, char **azColName){
 	return SQLITE_OK;
 }
 
-
+/**
+ * @brief Gets all data from Database
+ */
 int getAllMsgFromDb(QueryData **msg_data, int* num_of_rows)
 {
 	if(opendb() != SQLITE_OK) /*create database instance*/
@@ -379,6 +400,11 @@ int getMsgById(QueryData **msg_data, int id)
 	return SQLITE_OK;
 }
 
+/**
+ * @brief Gets info from Database corresponding to current date
+ *
+ * @return SQLITE_OK info for current date is found, SQLITE_ERROR otherwise.
+ */
 int getMsgByCurrentDate(QueryData **msg_data, int* num_of_rows)
 {
 	if(opendb() != SQLITE_OK) /*create database instance*/
@@ -416,6 +442,7 @@ int getMsgByCurrentDate(QueryData **msg_data, int* num_of_rows)
    return SQLITE_OK;
 }
 
+
 static int deletecb(void *data, int argc, char **argv, char **azColName)
 {
    int i;
@@ -450,6 +477,9 @@ int deleteMsgById(int id)
    return SQLITE_OK;
 }
 
+/**
+ * @brief Deletes all info from Database except last 28 days using sql query.
+ */
 int delAllExceptLast28Days()
 {
 	if(opendb() != SQLITE_OK) /*create database instance*/
@@ -477,6 +507,9 @@ int delAllExceptLast28Days()
    return SQLITE_OK;
 }
 
+/**
+ * @brief Deletes Table
+ */
 int deleteMsgAll()
 {
 	if(opendb() != SQLITE_OK) /*create database instance*/
@@ -503,8 +536,9 @@ int deleteMsgAll()
    return SQLITE_OK;
 }
 
-int g_row_count = 0;
-
+/**
+ * @brief Callback function for obtaining counted value returned by sql query.
+ */
 static int row_count_cb(void *data, int argc, char **argv, char **azColName)
 {
 	g_row_count = atoi(argv[0]); /*number of rows*/
@@ -512,6 +546,9 @@ static int row_count_cb(void *data, int argc, char **argv, char **azColName)
 	return 0;
 }
 
+/**
+ * @brief Counts total number of rows present in specified database table.
+ */
 int getTotalMsgItemsCount(int* num_of_rows)
 {
 	if(opendb() != SQLITE_OK) /*create database instance*/
@@ -539,9 +576,61 @@ int getTotalMsgItemsCount(int* num_of_rows)
 }
 
 
+int countLeapDays(int m, int y){
+    if (m <= 2)
+        y--;
+
+    return y/4 - y/100 + y/400;
+}
+
+void getNumericDate(int *d, int *m, int *y, const char *day){
+    char *temp = (char *) calloc(1, 5);
+
+    strncpy(temp, &day[0], 4);
+    *y = atoi(temp);
+    temp = NULL;
+
+    temp = calloc(1, 3);
+    strncpy(temp, &day[5], 2);
+    *m = atoi(temp);
+    temp = NULL;
+
+    temp = calloc(1, 3);
+    strncpy(temp, &day[8], 2);
+    *d = atoi(temp);
+
+    temp = NULL;
+    free(temp);
+}
+
+int getDays(const char* day1, const char* day2){
+    int daysOfMonth[12] = {31, 28, 31, 30, 31, 30,
+                           31, 31, 30, 31, 30, 31};
+    int n1, d1, m1, y1;
+    int n2, d2, m2, y2;
+
+    getNumericDate(&d1, &m1, &y1, day1);
+    getNumericDate(&d2, &m2, &y2, day2);
+
+    n1 = y1*365 + d1;
+    n2 = y2*365 + d2;
+
+    int i;
+    for (i=0; i<m1 - 1; i++)
+        n1 += daysOfMonth[i];
+
+    for (i=0; i<m2 - 1; i++)
+        n2 += daysOfMonth[i];
+
+    n1 += countLeapDays(m1, y1);
+    n2 += countLeapDays(m2, y2);
+
+    return (n2 - n1);
+}
+
+// Function for inserting dummy values in DB
 void populateDb(void)
 {
-
 	if(opendb() != SQLITE_OK) /*create database instance*/
 	{
 		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to create database instance.");
@@ -605,57 +694,50 @@ void populateDb(void)
 		}
 	}
 
+	for(int i = 1; i <= 3; i++){
+//		if (i == 25 || i == 27 || i == 28 || i == 15 | i == 4) {
+//			continue;
+//		}
+//		if (i >= 25 && i <= 30) {
+//			continue;
+//		}
+//		if (i >= 25 && i <= 31) {
+//			continue;
+//		}
+//		if (i >= 26 && i <= 31) {
+//			continue;
+//		}
+
+		sprintf(dateTime, "'2016-08-%02d'", i);
+
+		distance = (float) ((rand() % 19000) + 1001.0); //Distance between 1 km and 20 km
+		tempDistance = distance / 1000;
+		steps = (int) distance * 2;
+		calories = 0.0215 * tempDistance * tempDistance * tempDistance
+				- 0.1765 * tempDistance * tempDistance + 0.8710 * tempDistance
+				+ 1.4577 * 70 * (tempDistance/3);
+		fare = (int) (10 + (tempDistance - 1.0) * 5);
+
+		/*prepare query for INSERT operation*/
+		snprintf(sqlbuff, BUFLEN, "INSERT INTO "\
+				TABLE_NAME" ("\
+				COL_DATE"," \
+				COL_DIST"," \
+				COL_FARE"," \
+				COL_CAL"," \
+				COL_STP")"\
+				" VALUES(%s, %f, %d, %f, %d);",
+						dateTime, distance, fare, calories, steps);
+
+		ret = sqlite3_exec(avoidRickshawDb, sqlbuff, insertcb, 0, &ErrMsg); /*execute query*/
+		if (ret != SQLITE_OK)
+		{
+			dlog_print(DLOG_ERROR, LOG_TAG, "PopulateDb: Insertion Error! [%s]", sqlite3_errmsg(avoidRickshawDb));
+			sqlite3_free(ErrMsg);
+			sqlite3_close(avoidRickshawDb); /*close db instance for failed case*/
+			return;
+		}
+	}
+
 	sqlite3_close(avoidRickshawDb); /*close db instance for success case*/
-}
-
-int countLeapDays(int m, int y){
-    if (m <= 2)
-        y--;
-
-    return y/4 - y/100 + y/400;
-}
-
-void getNumericDate(int *d, int *m, int *y, const char *day){
-    char *temp = (char *) calloc(1, 5);
-
-    strncpy(temp, &day[0], 4);
-    *y = atoi(temp);
-    temp = NULL;
-
-    temp = calloc(1, 3);
-    strncpy(temp, &day[5], 2);
-    *m = atoi(temp);
-    temp = NULL;
-
-    temp = calloc(1, 3);
-    strncpy(temp, &day[8], 2);
-    *d = atoi(temp);
-
-    temp = NULL;
-    free(temp);
-}
-
-int getDays(const char* day1, const char* day2){
-    int daysOfMonth[12] = {31, 28, 31, 30, 31, 30,
-                           31, 31, 30, 31, 30, 31};
-    int n1, d1, m1, y1;
-    int n2, d2, m2, y2;
-
-    getNumericDate(&d1, &m1, &y1, day1);
-    getNumericDate(&d2, &m2, &y2, day2);
-
-    n1 = y1*365 + d1;
-    n2 = y2*365 + d2;
-
-    int i;
-    for (i=0; i<m1 - 1; i++)
-        n1 += daysOfMonth[i];
-
-    for (i=0; i<m2 - 1; i++)
-        n2 += daysOfMonth[i];
-
-    n1 += countLeapDays(m1, y1);
-    n2 += countLeapDays(m2, y2);
-
-    return (n2 - n1);
 }
