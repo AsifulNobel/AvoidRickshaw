@@ -230,7 +230,7 @@ int count_fare(void) {
 
 	double baseDistance = 1.0;
 
-	if (s_info.total_distance > 1000.0)
+	if (s_info.total_distance > 10.0)
 		fare = (int) baseFare + ((s_info.total_distance / 1000) - baseDistance) * farePerUnitDistance;
 	else
 		fare = 0.0;
@@ -417,7 +417,7 @@ static void _accel_cb(sensor_h sensor, sensor_event_s *event, void *data)
 	if ((s_info.prev_acc_av > s_info.init_acc_av && s_info.init_acc_av - current_acc_av > TRESHOLD)) {
 		s_info.steps_count++;
 		if (s_info.steps_count_changed_callback)
-			s_info.steps_count_changed_callback(s_info.steps_count);
+			s_info.steps_count_changed_callback(s_info.total_distance/.45);
 	}
 
 	s_info.prev_acc_av = current_acc_av;
