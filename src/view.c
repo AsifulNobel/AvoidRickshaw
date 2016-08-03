@@ -438,11 +438,6 @@ Eina_Bool view_history_create(void *data)
 		dlog_print(DLOG_DEBUG, LOG_TAG, "Deletion status: %d", ret);
 	}
 
-	// If starting database for first time, populate database for App Demo.
-	if (num_of_rows == 0) {
-		populateDb();
-	}
-
 	ret = getLast28DaysInfo(&msgdata, &num_of_rows);
 
 	dlog_print(DLOG_DEBUG, LOG_TAG, "Querying database...Status: %d", ret);
