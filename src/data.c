@@ -1,600 +1,731 @@
-#include <locations.h>
-#include <math.h>
-#include <sensor.h>
-#include <Ecore.h>
-#include <app_preference.h>
+#include <string.h>
+#include <time.h>
+#include <sqlite3.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <storage.h>
+#include <app_common.h>
+#include <stdio.h>
+#include <dlog.h>
 #include "avoidrickshaw.h"
-#include "data.h"
 #include "Sqlitedbhelper.h"
-#include "view.h"
 
-#define TRESHOLD 0.2
-#define MAX_ACCEL_INIT_VALUE 1000
-#define DOUBLE_COMPARIZON_THRESHOLD 0.0001
+#define DB_NAME "sample.db"
+#define TABLE_NAME "infoTable"
+/***************/
 
-#define RADIUS 6371
-#define TO_RAD (3.14159265/180)
-#define KM 1000
-#define LAT_UNINITIATED DBL_MAX
-#define LONG_UNINITIATED DBL_MAX
+#define COL_ID "ID"
+#define COL_DIST "Distance"
+#define COL_DATE "Info_DATE"
+#define COL_STP "Steps"
+#define COL_CAL "Calories"
+#define COL_FARE "Fare"
 
-static bool initialized = false;
+/***************/
 
-static struct data_info {
-	location_manager_h location_manager;
-	double total_distance;
-	double prev_latitude;
-	double prev_longitude;
-	data_position_changed_callback_t position_changed_callback;
-	data_gps_steps_count_callback_t steps_count_changed_callback;
-	data_fare_count_callback_t fare_count_changed_callback;
-	data_calorie_count_callback_t calorie_count_changed_callback;
-	sensor_listener_h acceleration_listener;
-	double prev_acc_av;
-	double init_acc_av;
-	int prev_steps_count;
-	int steps_count;
-	double start_time;
-	double calories;
-	double weight;
-} s_info = {
-	.location_manager = NULL,
-	.total_distance = 0.0,
-	.prev_latitude = LAT_UNINITIATED,
-	.prev_longitude = LONG_UNINITIATED,
-	.position_changed_callback = NULL,
-	.steps_count_changed_callback = NULL,
-	.fare_count_changed_callback = NULL,
-	.calorie_count_changed_callback = NULL,
-	.acceleration_listener = NULL,
-	.prev_acc_av = MAX_ACCEL_INIT_VALUE,
-	.init_acc_av = MAX_ACCEL_INIT_VALUE,
-	.prev_steps_count = 0,
-	.steps_count = 0,
-	.start_time = 0.0,
-	.calories = 0.0,
-	.weight = 70.0
-};
+#define BUFLEN 500 /*assume buffer length for query string's size.*/
 
-static void _pos_updated_cb(double latitude, double longitude, double altitude, time_t timestamp, void *data);
-static void _accel_cb(sensor_h sensor, sensor_event_s *event, void *data);
-static bool _data_distance_tracker_start(void);
-static bool _data_distance_tracker_stop(void);
-static bool _data_distance_tracker_init(void);
-static void _data_distance_tracker_destroy(void);
-static bool _data_acceleration_sensor_start(void);
-static bool _data_acceleration_sensor_stop(void);
-static bool _data_acceleration_sensor_init_handle(void);
-static void _data_acceleration_sensor_release_handle(void);
-static int count_fare(void);
-void _data_save_db(void);
-static void calorieBurner();
+// Helper functions for counting days between two date of format YYYY-MM-DD
+int countLeapDays(int m, int y);
+void getNumericDate(int *d, int *m, int *y, const char *day);
+int getDays(const char* day1, const char* day2);
 
-/**
- * @brief Initialization function for data module.
- * @return This function returns 'EINA_TRUE' if the data module was initialized successfully,
- * otherwise 'EINA_FALSE' is returned.
- */
-Eina_Bool data_initialize(void)
+
+sqlite3 *avoidRickshawDb; /*name of database*/
+QueryData *qrydata;
+int select_row_count = 0;
+int g_row_count = 0;
+char *tmp_date;
+
+/*open database instance*/
+int opendb()
 {
-	/*
-	 * If you need to initialize application data,
-	 * please use this function.
-	 */
-	if (data_gps_enabled_get())
-		_data_distance_tracker_init();
+     char * dataPath = app_get_data_path(); /*fetched package path available physically in the device*/
+	 int size = strlen(dataPath)+10;
 
-	return _data_acceleration_sensor_init_handle();
+	 char * path = malloc(sizeof(char)*size);
+
+	 strcpy(path,dataPath);
+	 strncat(path, DB_NAME, size);
+
+	 int ret = sqlite3_open_v2( path , &avoidRickshawDb, SQLITE_OPEN_CREATE|SQLITE_OPEN_READWRITE, NULL);
+	 if(ret != SQLITE_OK)
+
+	 free(dataPath);
+	 free(path);
+
+	 /*didn't close database instance as this will be handled by caller e.g. insert, delete*/
+
+	 return ret;
 }
 
 /**
- * @brief Finalization function for data module.
+ * @brief Creates Table for storing app info in Database
+ * @return Status SQLITE_ERROR or SQLITE_OK
+ * SQLITE_ERROR = 1
+ * SQLITE_OK = 0
  */
-void data_finalize(void)
+int initdb()
 {
-	/*
-	 * If you need to finalize application data,
-	 * please use this function.
-	 */
-	_data_distance_tracker_destroy();
-	_data_acceleration_sensor_release_handle();
+	if (opendb() != SQLITE_OK) /*create database instance*/
+		return SQLITE_ERROR;
+
+   int ret;
+   char *ErrMsg;
+   /*query preparation for table creation. it will not be created the table if it is exists already*/
+   char *sql = "CREATE TABLE IF NOT EXISTS "\
+		    TABLE_NAME" ("  \
+			COL_DATE" TEXT NOT NULL, " \
+			COL_DIST" REAL NOT NULL," \
+			COL_FARE" INTEGER NOT NULL, " \
+			COL_CAL" REAL NOT NULL, " \
+			COL_STP" INTEGER NOT NULL,"\
+			COL_ID" INTEGER PRIMARY KEY AUTOINCREMENT);";
+
+   ret = sqlite3_exec(avoidRickshawDb, sql, NULL, 0, &ErrMsg); /*execute query*/
+
+   if(ret != SQLITE_OK)
+   {
+	   dlog_print(DLOG_DEBUG, LOG_TAG, "Table Create Error! [%s]", ErrMsg);
+	   sqlite3_free(ErrMsg);
+	   sqlite3_close(avoidRickshawDb); /*close db instance as instance is still open*/
+
+	   return SQLITE_ERROR;
+   }
+
+   dlog_print(DLOG_DEBUG, LOG_TAG, "Db Table created successfully!");
+   sqlite3_close(avoidRickshawDb); /*close the db instance as operation is done here*/
+
+   dlog_print(DLOG_DEBUG, LOG_TAG, "Closed Db instance!");
+
+   return SQLITE_OK;
+}
+
+/*callback for insert operation*/
+static int insertcb(void *NotUsed, int argc, char **argv, char **azColName){
+   int i;
+   for(i=0; i<argc; i++){
+      /*usually we do not need to do anything.*/
+   }
+   return 0;
 }
 
 /**
- * @brief Starts the activity tracking.
- */
-bool data_tracking_start(void)
-{
-	if(!initialized && data_gps_enabled_get()){
-		bool track = _data_distance_tracker_start();
-		bool accel_sensor = _data_acceleration_sensor_start();
-		s_info.start_time = ecore_time_get();
-		initialized = true;
-
-		/* Re-initialize count on start of another session */
-		if (!s_info.steps_count) {
-			s_info.steps_count_changed_callback(s_info.steps_count);
-			s_info.position_changed_callback(s_info.total_distance);
-			s_info.fare_count_changed_callback(0);
-			view_set_calories(s_info.calories);
-		}
-
-		const char key_name[] = "weight\0";
-		bool existing;
-
-		preference_is_existing(key_name, &existing);
-
-		if (existing) {
-			preference_get_double(key_name, &s_info.weight);
-		}
-
-		if (track && accel_sensor)
-			return true;
-		else
-			return false;
-	}
-	return false;
-}
-
-/**
- * @brief Stops the activity tracking.
- */
-bool data_tracking_stop(void)
-{
-	if(initialized) {
-		bool track = _data_distance_tracker_stop();
-		bool accel_sensor = _data_acceleration_sensor_stop();
-		initialized = false;
-
-		if (track && accel_sensor){
-			return true;
-		}
-		else
-			return false;
-	}
-	else
-		return false;
-}
-
-/**
- * @brief Attaches the position changed callback function.
- * @param[in] position_changed_callback The callback function to be attached.
- */
-void data_set_position_changed_callback(data_position_changed_callback_t position_changed_callback)
-{
-	s_info.position_changed_callback = position_changed_callback;
-}
-
-/**
- * @brief Attaches the steps counter changed callback function.
- * @param[in] steps_count_callback The callback function to be attached.
- */
-void data_set_steps_count_changed_callback(data_gps_steps_count_callback_t steps_count_callback)
-{
-	s_info.steps_count_changed_callback = steps_count_callback;
-}
-
-/*
- * @brief Attaches fare count changed callback function.
- * @param[in] fare_count_callback The callback function to be attached.
- */
-void data_set_fare_changed_callback(data_fare_count_callback_t fare_count_callback)
-{
-	s_info.fare_count_changed_callback = fare_count_callback;
-}
-
-
-/*
- * @brief Attaches calorie count changed callback function.
- * @param[in] calorie_count_callback The callback function to be attached.
- */
-void data_set_calorie_changed_callback(data_calorie_count_callback_t calorie_count_callback)
-{
-	s_info.calorie_count_changed_callback = calorie_count_callback;
-}
-
-/**
- * @brief Obtains the state of the GPS module and attaches a callback function
- * for its state change.
- * @return This function returns 'true' if the GPS module is enabled,
- * otherwise 'false' is returned.
- */
-bool data_gps_enabled_get(void)
-{
-	bool gps_enabled = false;
-
-	/* Check if GPS is enabled and set callback for GPS status updates */
-	int ret = location_manager_is_enabled_method(LOCATIONS_METHOD_GPS, &gps_enabled);
-	if (ret != LOCATIONS_ERROR_NONE) {
-		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to get GPS status");
-		return false;
-	}
-
-	if (!gps_enabled) {
-			dlog_print(DLOG_ERROR, LOG_TAG, "GPS not enabled");
-			return false;
-	}
-
-	return true;
-}
-
-/**
- * @brief Function invoked after updating total distance to count Rickshaw fare. After calculating
- * fare, total fare is updated in view.
- * @return Calculated fare.
- */
-int count_fare(void) {
-	int baseFare = 10;
-	int farePerUnitDistance = 5;
-	int fare;
-
-	double baseDistance = 1.0;
-
-	if (s_info.total_distance > 10.0)
-		fare = (int) baseFare + ((s_info.total_distance / 1000) - baseDistance) * farePerUnitDistance;
-	else
-		fare = 0.0;
-
-	s_info.fare_count_changed_callback(fare);
-
-	return fare;
-}
-
-/**
- * @brief Internal callback function invoked on position obtained from GPS module update.
- * This callback function is attached with the location_manager_set_position_updated_cb() function.
- * It is responsible for total distance passed and number of steps computation.
- * These values are computed based on coordinates obtained from GPS module.
- * @param[in] latitude The value of latitude.
- * @param[in] longitude The value of longitude.
- * @param[in] altitude The value of altitude.
- * @param[in] data The user data passed to the callback attachment function.
- */
-static void _pos_updated_cb(double latitude, double longitude, double altitude, time_t timestamp, void *data)
-{
-	int ret;
-	double distance = 0;
-
-	location_accuracy_level_e gps_accuracy;
-	double horizontal_acc = 0.0;
-	double vertical_acc = 0.0;
-
-	location_manager_get_accuracy(s_info.location_manager, & gps_accuracy, &horizontal_acc, &vertical_acc);
-
-	dlog_print(DLOG_DEBUG, LOG_TAG, "horizontal_acc: %lf, vertical_acc: %lf", horizontal_acc, vertical_acc);
-
-	/* If callback is called for the first time and step count is non-zero, set previous values */
-	if (fabs(s_info.prev_latitude - LAT_UNINITIATED) < DOUBLE_COMPARIZON_THRESHOLD &&
-		fabs(s_info.prev_longitude - LONG_UNINITIATED) < DOUBLE_COMPARIZON_THRESHOLD &&
-		s_info.steps_count > 0) {
-		s_info.prev_latitude = latitude;
-		s_info.prev_longitude = longitude;
-
-		return;
-	}
-
-	dlog_print(DLOG_DEBUG, LOG_TAG, "previous lat: %lf, previous long: %lf", s_info.prev_latitude, s_info.prev_longitude);
-	dlog_print(DLOG_DEBUG, LOG_TAG, "current lat: %lf, current long: %lf", latitude, longitude);
-
-	/* Calculate distance between previous and current location data and
-	 * update view */
-	ret = location_manager_get_distance(latitude, longitude, s_info.prev_latitude, s_info.prev_longitude, &distance);
-	if (ret != LOCATIONS_ERROR_NONE) {
-		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to get distance");
-		return;
-	}
-
-	if (s_info.steps_count > s_info.prev_steps_count) {
-		// If user is actually walking/running
-
-		s_info.total_distance += distance;
-		dlog_print(DLOG_DEBUG, LOG_TAG, "total distance: %lf meters", s_info.total_distance);
-
-		/* Set new prev values */
-		s_info.prev_latitude = latitude;
-		s_info.prev_longitude = longitude;
-		s_info.prev_steps_count = s_info.steps_count;
-
-		if (s_info.position_changed_callback)
-			s_info.position_changed_callback(s_info.total_distance);
-
-		count_fare();
-		calorieBurner();
-	}
-	else if (distance > 0) {
-		// If user is moving, but not walking/running
-
-		s_info.prev_latitude = latitude;
-		s_info.prev_longitude = longitude;;
-
-		dlog_print(DLOG_DEBUG, LOG_TAG, "because step count did not update, saving position only.");
-	}
-	else {
-		dlog_print(DLOG_DEBUG, LOG_TAG, "because step count and distances did not update, nothing to do.");
-	}
-}
-
-/**
- * @brief Internal function responsible for distance tracker initialization.
- * This function creates the location manager instance and attaches position change callback.
- * @return This function returns 'true' if the distance tracker was initialized successfully,
- * otherwise 'false' is returned.
- */
-static bool _data_distance_tracker_init(void)
-{
-	/* Create location manager and set callback for position updates */
-	int ret = location_manager_create(LOCATIONS_METHOD_HYBRID, &s_info.location_manager);
-	if (ret != LOCATIONS_ERROR_NONE) {
-		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to create location manager");
-		return false;
-	}
-
-
-	ret = location_manager_set_position_updated_cb(s_info.location_manager, _pos_updated_cb, 4, NULL);
-	if (ret != LOCATIONS_ERROR_NONE) {
-		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to register callback for position update");
-		_data_distance_tracker_destroy();
-		return false;
-	}
-
-	return true;
-}
-
-/**
- * @brief Internal function responsible for distance tracker destruction.
- */
-static void _data_distance_tracker_destroy(void)
-{
-	if (!s_info.location_manager)
-		return;
-
-	if (location_manager_destroy(s_info.location_manager) != LOCATIONS_ERROR_NONE)
-		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to destroy location manager");
-
-}
-
-/**
- * @brief Internal function responsible for distance tracker starting.
- */
-static bool _data_distance_tracker_start(void)
-{
-	if (!s_info.location_manager && !_data_distance_tracker_init()) {
-		dlog_print(DLOG_ERROR, LOG_TAG, "Location manager not initialized");
-		return false;
-	}
-
-	if (location_manager_start(s_info.location_manager) != LOCATIONS_ERROR_NONE){
-		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to start location manager");
-		return false;
-	}
-	return true;
-}
-
-/**
- * @brief Internal function responsible for distance tracker stopping.
- */
-static bool _data_distance_tracker_stop(void)
-{
-	if (!s_info.location_manager)
-		return false;
-
-	if (location_manager_stop(s_info.location_manager) != LOCATIONS_ERROR_NONE){
-		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to stop location manager");
-		return false;
-	}
-
-	// Save info to database
-	_data_save_db();
-
-	/* Re-initialize distance and steps */
-	s_info.total_distance = 0.0;
-	s_info.steps_count = 0;
-	s_info.calories = 0.0;
-
-	return true;
-}
-
-/**
- * @brief Internal callback function invoked on acceleration measurement acquisition.
- * This callback function is attached with the sensor_listener_set_event_cb() function.
- * It is responsible for acceleration peaks detection which is assumed to occur on step making.
- * @param[in] sensor The accelerometer sensor handle.
- * @param[in] event The event structure containing the acquired data.
- * @param[in] data The user data passed to the callback attachment function.
- */
-static void _accel_cb(sensor_h sensor, sensor_event_s *event, void *data)
-{
-	/* Get current average value of acceleration on three axes */
-	double current_acc_av = (fabs(event->values[0]) + fabs(event->values[1]) + fabs(event->values[2])) / 3;
-
-	/* If initial average acceleration value is not set, do it now */
-	if (fabs(s_info.init_acc_av - MAX_ACCEL_INIT_VALUE) < DOUBLE_COMPARIZON_THRESHOLD) {
-		s_info.init_acc_av = s_info.prev_acc_av = current_acc_av;
-		return;
-	}
-
-	/* Register a drop of acceleration average value */
-	if ((s_info.prev_acc_av > s_info.init_acc_av && s_info.init_acc_av - current_acc_av > TRESHOLD)) {
-		s_info.steps_count++;
-		if (s_info.steps_count_changed_callback)
-			s_info.steps_count_changed_callback(s_info.total_distance/.45);
-	}
-
-	s_info.prev_acc_av = current_acc_av;
-}
-
-/**
- * @brief Internal function responsible for acceleration sensor initialization
- * and data acquisition callback function attachment.
- * @return This function returns 'true' if the acceleration sensor was initialized successfully,
- * otherwise 'false' is returned.
- */
-static bool _data_acceleration_sensor_init_handle(void)
-{
-	sensor_h sensor;
-	bool supported = false;
-
-	int ret = sensor_is_supported(SENSOR_ACCELEROMETER, &supported);
-	if (ret != SENSOR_ERROR_NONE || !supported) {
-		dlog_print(DLOG_ERROR, LOG_TAG, "Accelerometer sensor not supported on current device");
-		return false;
-	}
-
-	ret = sensor_get_default_sensor(SENSOR_ACCELEROMETER, &sensor);
-	if (ret != SENSOR_ERROR_NONE) {
-		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to get default accelerometer sensor");
-		return false;
-	}
-
-	ret = sensor_create_listener(sensor, &s_info.acceleration_listener);
-	if (ret != SENSOR_ERROR_NONE) {
-		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to create accelerometer sensor");
-		return false;
-	}
-
-	ret = sensor_listener_set_event_cb(s_info.acceleration_listener, 200, _accel_cb, NULL);
-	if (ret != SENSOR_ERROR_NONE) {
-		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to set event callback for sensor listener");
-		sensor_destroy_listener(s_info.acceleration_listener);
-		s_info.acceleration_listener = NULL;
-		return false;
-	}
-
-	ret = sensor_listener_set_option(s_info.acceleration_listener, SENSOR_OPTION_ALWAYS_ON);
-	if (ret != SENSOR_ERROR_NONE)
-		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to set sensor's always on option");
-
-	return true;
-}
-
-/**
- * @brief Internal function responsible for acceleration listener destruction.
- */
-static void _data_acceleration_sensor_release_handle(void)
-{
-	if (!s_info.acceleration_listener)
-		return;
-
-	if (sensor_destroy_listener(s_info.acceleration_listener) != SENSOR_ERROR_NONE)
-		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to destroy accelerometer sensor listener");
-
-	s_info.acceleration_listener = NULL;
-}
-
-/**
- * @brief Internal function responsible for acceleration sensor staring.
- */
-static bool _data_acceleration_sensor_start(void)
-{
-	if (!s_info.acceleration_listener)
-		return false;
-
-	if (sensor_listener_start(s_info.acceleration_listener) != SENSOR_ERROR_NONE){
-		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to start accelerometer sensor listener");
-		return false;
-	}
-	return true;
-}
-
-/**
- * @brief Internal function responsible for acceleration sensor stopping.
- */
-static bool _data_acceleration_sensor_stop(void)
-{
-	if (!s_info.acceleration_listener)
-		return false;
-
-	if (sensor_listener_stop(s_info.acceleration_listener) != SENSOR_ERROR_NONE) {
-		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to stop accelerometer sensor listener");
-		return false;
-	}
-
-	/* Reset init/prev acceleration data */
-	s_info.init_acc_av = s_info.prev_acc_av = MAX_ACCEL_INIT_VALUE;
-
-	return true;
-}
-
-/*
- * @Brief Callback function for saving session info in database.
- */
-void _data_save_db(void) {
-	dlog_print(DLOG_DEBUG, LOG_TAG, "Stop button clicked!");
-
-	int temp;
-	temp = count_fare();
-	int num_rows = 0;
-
-	int ret;
-	ret = initdb();
-	dlog_print(DLOG_DEBUG, LOG_TAG, "Called initdb function...Status: %d", ret);
-
-	QueryData* msgdata;
-
-	/*allocate msgdata memory. this will be used for retrieving data from database*/
-	msgdata = (QueryData*) calloc (1, sizeof(QueryData));
-
-	ret = getMsgByCurrentDate(&msgdata, &num_rows);
-
-	if (!ret){
-		if(num_rows) {
-			msgdata->distance += (float) s_info.total_distance;
-			msgdata->fare += temp;
-			msgdata->steps += s_info.steps_count;
-			msgdata->calories += (float) s_info.calories;
-
-			/*Update existing row in DB*/
-			if (msgdata->steps > 0 && msgdata->distance > 0)
-				ret = updateInfoDb(msgdata->distance, msgdata->steps, msgdata->calories, msgdata->fare);
-			else
-				return;
-		}
-		else {
-			msgdata->distance = (float) s_info.total_distance;
-			msgdata->fare = temp;
-			msgdata->steps = s_info.steps_count;
-			msgdata->calories = (float) s_info.calories;
-
-			/*Insert new row in DB*/
-			if (msgdata->steps > 0 && msgdata->distance > 0)
-				ret = insertIntoDb(msgdata->distance, msgdata->steps, msgdata->calories, msgdata->fare);
-			else
-				return;
-		}
-	}
-	else {
-		dlog_print(DLOG_ERROR, LOG_TAG, "Error querying current date info in DB!");
-	}
-
-	dlog_print(DLOG_DEBUG, LOG_TAG, "Saving session data in database...Status: %d", ret);
-}
-
-/*
- * @Brief Callback function for 'Show History' button
- */
-void data_show_db(void) {
-	dlog_print(DLOG_DEBUG, LOG_TAG, "'Show History' button clicked!");
-}
-
-/*
- * @brief Calculates burnt calories while walking or running.
+ * @brief Insert info in Database
  *
+ * @param[in] distance [float Type]
+ * @param[in] steps [int Type]
+ * @param[in] calories [float Type]
+ * @param[in] fare [int Type]
+ *
+ * @return Status SQLITE_ERROR or SQLITE_OK
+ * SQLITE_ERROR = 1
+ * SQLITE_OK = 0
  */
-static void calorieBurner()
+int insertIntoDb(float distance, int steps, float calories, int fare)
 {
-	double tempDistance = s_info.total_distance / 1000;
-    double elapsedTime = ecore_time_get(); // Gets current time in seconds
+	if(opendb() != SQLITE_OK) /*create database instance*/
+		return SQLITE_ERROR;
 
-    elapsedTime -= s_info.start_time;
-    elapsedTime = elapsedTime / 3600; // converts elapsed time in seconds to hour
+	char sqlbuff[BUFLEN];
+	char *ErrMsg;
+	int ret;
+	/*read system date time using sqlite function*/
+	char* dateTime = "strftime('%Y-%m-%d','now')";
 
-    dlog_print(DLOG_DEBUG, LOG_TAG, "elapsed time: %lf hour", elapsedTime);
+	/*prepare query for INSERT operation*/
+	snprintf(sqlbuff, BUFLEN, "INSERT INTO "\
+			TABLE_NAME" ("\
+			COL_DATE"," \
+			COL_DIST"," \
+			COL_FARE"," \
+			COL_CAL"," \
+			COL_STP")"\
+			" VALUES(%s, %f, %d, %f, %d);", /*didn't include id as it is autoincrement*/
+					dateTime, distance, fare, calories, steps);
 
-    s_info.calories = 0.0215 * tempDistance * tempDistance * tempDistance
-    		- 0.1765 * tempDistance * tempDistance + 0.8710 * tempDistance
-    		+ 1.4577 * s_info.weight * elapsedTime ;
+	ret = sqlite3_exec(avoidRickshawDb, sqlbuff, insertcb, 0, &ErrMsg); /*execute query*/
+	if (ret != SQLITE_OK)
+	{
+		dlog_print(DLOG_ERROR, LOG_TAG, "Insertion Error! [%s]", sqlite3_errmsg(avoidRickshawDb));
+		sqlite3_free(ErrMsg);
+		sqlite3_close(avoidRickshawDb); /*close db instance for failed case*/
+		return SQLITE_ERROR;
+	}
+	sqlite3_close(avoidRickshawDb); /*close db instance for success case*/
+	return SQLITE_OK;
+}
 
-    // If travelled distance is non-zero, then change 'calories burnt' value shown in view
-    if (s_info.total_distance > 0)
-    	s_info.calorie_count_changed_callback(s_info.calories);
+/**
+ * @brief Update info in Database
+ *
+ * @param[in] distance [float Type]
+ * @param[in] steps [int Type]
+ * @param[in] calories [float Type]
+ * @param[in] fare [int Type]
+ *
+ * @return Status SQLITE_ERROR or SQLITE_OK
+ * SQLITE_ERROR = 1
+ * SQLITE_OK = 0
+ */
+int updateInfoDb(float distance, int steps, float calories, int fare)
+{
+	if(opendb() != SQLITE_OK) /*create database instance*/
+		return SQLITE_ERROR;
+
+	char sqlbuff[BUFLEN];
+	char *ErrMsg;
+	int ret;
+	/*read system date time using sqlite function*/
+	char* dateTime = "strftime('%Y-%m-%d','now')";
+
+	/*prepare query for INSERT operation*/
+	snprintf(sqlbuff, BUFLEN, "UPDATE "\
+			TABLE_NAME" SET "\
+			COL_DIST"=%f," \
+			COL_FARE"=%d," \
+			COL_CAL"=%f," \
+			COL_STP"=%d"\
+			" WHERE "\
+			COL_DATE"=%s;", /*didn't include id as it is autoincrement*/
+					distance, fare, calories, steps, dateTime);
+
+	dlog_print(DLOG_DEBUG, LOG_TAG, "Update query = [%s]", sqlbuff);
+
+	ret = sqlite3_exec(avoidRickshawDb, sqlbuff, insertcb, 0, &ErrMsg); /*execute query*/
+	if (ret != SQLITE_OK)
+	{
+		dlog_print(DLOG_ERROR, LOG_TAG, "Update Error! [%s]", sqlite3_errmsg(avoidRickshawDb));
+		sqlite3_free(ErrMsg);
+		sqlite3_close(avoidRickshawDb); /*close db instance for failed case*/
+		return SQLITE_ERROR;
+	}
+	sqlite3_close(avoidRickshawDb); /*close db instance for success case*/
+	return SQLITE_OK;
+}
+
+/***************************************************/
+/*this callback will be called for each row fetched from database. we need to handle retrieved elements for each row manually and store data for further use*/
+static int selectAllItemcb(void *data, int argc, char **argv, char **azColName){
+	/*
+	* SQLite queries return data in argv parameter as  character pointer */
+	/*prepare a temporary structure*/
+	QueryData *temp;
+	int dayDiff;
+
+	if (select_row_count == 0)
+		dayDiff = getDays(argv[0], tmp_date) + 1;
+	else
+		dayDiff = getDays(argv[0], tmp_date);
+
+	if (dayDiff > 1) {
+
+		temp = (QueryData*)realloc(qrydata, ((select_row_count + dayDiff) * sizeof(QueryData)));
+
+		for(int i = 0; i < dayDiff; i++){
+			strcpy(temp[select_row_count+i].date, "0");
+			temp[select_row_count+i].distance = 0.0;
+			temp[select_row_count+i].fare = 0;
+			temp[select_row_count+i].calories = 0.0;
+			temp[select_row_count+i].steps = 0;
+			temp[select_row_count+i].id = 0;
+		}
+		select_row_count += dayDiff-1;
+		strcpy(tmp_date, argv[0]);
+	}
+	else {
+		temp = (QueryData*) realloc(qrydata, ((select_row_count + 1) * sizeof(QueryData)));
+		strcpy(tmp_date, argv[0]);
+	}
+
+	if(temp == NULL){
+		dlog_print(DLOG_ERROR, LOG_TAG, "Cannot reallocate memory for QueryData");
+		return SQLITE_ERROR;
+	}
+	else {
+        /*store data into temp structure*/
+		strcpy(temp[select_row_count].date, argv[0]);
+		temp[select_row_count].distance = atof(argv[1]);
+		temp[select_row_count].fare = atoi(argv[2]);
+		temp[select_row_count].calories = atof(argv[3]);
+		temp[select_row_count].steps = atoi(argv[4]);
+		temp[select_row_count].id = atoi(argv[5]);
+
+		qrydata = temp;
+	}
+	temp = NULL;
+	free(temp);
+
+	select_row_count++; /*keep row count*/
+
+	return SQLITE_OK;
+}
+
+/*this callback will be called for each row fetched from database. we need to handle retrieved elements for each row manually and store data for further use*/
+static int selectItemcb(void *data, int argc, char **argv, char **azColName){
+	/*
+	* SQLite queries return data in argv parameter as  character pointer */
+	/*prepare a temporary structure*/
+	QueryData *temp = (QueryData*)realloc(qrydata, ((select_row_count + 1) * sizeof(QueryData)));
+
+	if(temp == NULL){
+		dlog_print(DLOG_ERROR, LOG_TAG, "Cannot reallocate memory for QueryData");
+		return SQLITE_ERROR;
+	}
+	else {
+        /*store data into temp structure*/
+		strcpy(temp[select_row_count].date, argv[0]);
+		temp[select_row_count].distance = atof(argv[1]);
+		temp[select_row_count].fare = atoi(argv[2]);
+		temp[select_row_count].calories = atof(argv[3]);
+		temp[select_row_count].steps = atoi(argv[4]);
+		temp[select_row_count].id = atoi(argv[5]);
+
+		qrydata = temp;
+	}
+	temp = NULL;
+	free(temp);
+
+	select_row_count++; /*keep row count*/
+
+	return SQLITE_OK;
+}
+
+/**
+ * @brief Gets all data from Database
+ */
+int getAllMsgFromDb(QueryData **msg_data, int* num_of_rows)
+{
+	if(opendb() != SQLITE_OK) /*create database instance*/
+		return SQLITE_ERROR;
+
+	qrydata = (QueryData *) calloc (1, sizeof(QueryData)); /*preparing local querydata struct*/
+
+	char *sql = "SELECT * FROM infoTable ORDER BY ID DESC"; /*select query*/
+	int ret;
+	char *ErrMsg;
+	select_row_count = 0;
+
+    ret = sqlite3_exec(avoidRickshawDb, sql, selectItemcb, (void*)msg_data, &ErrMsg);
+
+    if (ret != SQLITE_OK)
+	{
+	   dlog_print(DLOG_ERROR, LOG_TAG, "Select query execution error [%s]", ErrMsg);
+	   sqlite3_free(ErrMsg);
+	   sqlite3_close(avoidRickshawDb); /*close db for failed case*/
+
+	   return SQLITE_ERROR;
+	}
+
+   *msg_data = qrydata;
+   *num_of_rows = select_row_count;
+
+   sqlite3_close(avoidRickshawDb); /*close db for success case*/
+
+   return SQLITE_OK;
+}
+
+/*
+ * @brief Gets data of last 28 days from Database with current date included.
+ */
+int getLast28DaysInfo(QueryData **msg_data, int* num_of_rows)
+{
+	if(opendb() != SQLITE_OK) /*create database instance*/
+		return SQLITE_ERROR;
+
+	qrydata = (QueryData *) calloc (1, sizeof(QueryData)); /*preparing local querydata struct*/
+
+	char *sql = "SELECT * FROM infoTable WHERE "\
+			COL_DATE" BETWEEN date('now','-27 days')"
+					" AND date('now') ORDER BY ID DESC;";
+
+	size_t len = sizeof("YYYY-MM-DD");
+	tmp_date = (char *) calloc(1, len);
+	time_t now = time(NULL);
+	struct tm *t = localtime(&now);
+	strftime(tmp_date, len, "%Y-%m-%d", t);
+
+	int ret;
+	char *ErrMsg;
+	select_row_count = 0;
+
+    ret = sqlite3_exec(avoidRickshawDb, sql, selectAllItemcb, (void*)msg_data, &ErrMsg);
+
+    if (ret != SQLITE_OK)
+	{
+	   dlog_print(DLOG_ERROR, LOG_TAG, "Select query execution error [%s]", ErrMsg);
+	   sqlite3_free(ErrMsg);
+	   sqlite3_close(avoidRickshawDb); /*close db for failed case*/
+
+	   return SQLITE_ERROR;
+	}
+
+   *msg_data = qrydata;
+   *num_of_rows = select_row_count;
+   tmp_date = NULL;
+   free(tmp_date);
+
+   sqlite3_close(avoidRickshawDb); /*close db for success case*/
+
+   return SQLITE_OK;
+}
+
+
+int getMsgById(QueryData **msg_data, int id)
+{
+	if(opendb() != SQLITE_OK) /*create database instance*/
+		return SQLITE_ERROR;
+
+	qrydata = (QueryData *) calloc (1, sizeof(QueryData));
+
+	char sql[BUFLEN];
+	snprintf(sql, BUFLEN, "SELECT * FROM infoTable where ID=%d;", id);
+
+	int ret = 0;
+	char *ErrMsg;
+
+    ret = sqlite3_exec(avoidRickshawDb, sql, selectAllItemcb, (void*)msg_data, &ErrMsg);
+	if (ret != SQLITE_OK)
+	{
+	   sqlite3_free(ErrMsg);
+	   sqlite3_close(avoidRickshawDb);
+
+	   return SQLITE_ERROR;
+	}
+
+	*msg_data = qrydata;
+
+	sqlite3_close(avoidRickshawDb); /*close db*/
+
+	return SQLITE_OK;
+}
+
+/**
+ * @brief Gets info from Database corresponding to current date
+ *
+ * @return SQLITE_OK info for current date is found, SQLITE_ERROR otherwise.
+ */
+int getMsgByCurrentDate(QueryData **msg_data, int* num_of_rows)
+{
+	if(opendb() != SQLITE_OK) /*create database instance*/
+			return SQLITE_ERROR;
+
+	qrydata = (QueryData *) calloc (1, sizeof(QueryData)); /*preparing local querydata struct*/
+	char* dateTime = "strftime('%Y-%m-%d','now')";
+
+	char sqlBuff[BUFLEN];
+	int ret;
+	char *ErrMsg;
+	select_row_count = 0;
+
+	/*prepare query for SELECT operation*/
+	snprintf(sqlBuff, BUFLEN, "SELECT * FROM infoTable WHERE "\
+			COL_DATE"=%s;", dateTime);
+
+
+	ret = sqlite3_exec(avoidRickshawDb, sqlBuff, selectItemcb, (void*)msg_data, &ErrMsg);
+
+	if (ret != SQLITE_OK)
+	{
+	   dlog_print(DLOG_ERROR, LOG_TAG, "Select query execution error [%s]", ErrMsg);
+	   sqlite3_free(ErrMsg);
+	   sqlite3_close(avoidRickshawDb); /*close db for failed case*/
+
+	   return SQLITE_ERROR;
+	}
+
+   *msg_data = qrydata;
+   *num_of_rows = select_row_count;
+
+   sqlite3_close(avoidRickshawDb); /*close db for success case*/
+
+   return SQLITE_OK;
+}
+
+
+static int deletecb(void *data, int argc, char **argv, char **azColName)
+{
+   int i;
+   for(i=0; i<argc; i++){
+	/*no need to do anything*/
+   }
+   return 0;
+}
+
+int deleteMsgById(int id)
+{
+	if(opendb() != SQLITE_OK) /*create database instance*/
+		return SQLITE_ERROR;
+
+   char sql[BUFLEN];
+   snprintf(sql, BUFLEN, "DELETE from infoTable where ID=%d;", id);
+
+   int counter = 0, ret = 0;
+   char *ErrMsg;
+
+   ret = sqlite3_exec(avoidRickshawDb, sql, deletecb, &counter, &ErrMsg);
+	if (ret != SQLITE_OK)
+	{
+	   sqlite3_free(ErrMsg);
+	   sqlite3_close(avoidRickshawDb);
+
+	   return SQLITE_ERROR;
+	}
+
+	sqlite3_close(avoidRickshawDb);
+
+   return SQLITE_OK;
+}
+
+/**
+ * @brief Deletes all info from Database except last 28 days using sql query.
+ */
+int delAllExceptLast28Days()
+{
+	if(opendb() != SQLITE_OK) /*create database instance*/
+		return SQLITE_ERROR;
+
+   char *sql = "DELETE FROM infoTable WHERE "\
+   			COL_DATE" < date('now','-27 days') OR "
+   			COL_DATE" > date('now');";
+
+   int counter = 0, ret = 0;
+   char *ErrMsg;
+
+   ret = sqlite3_exec(avoidRickshawDb, sql, deletecb, &counter, &ErrMsg);
+   if (ret != SQLITE_OK)
+   {
+	  dlog_print(DLOG_ERROR, LOG_TAG, "Delete query execution error [%s]", ErrMsg);
+	  sqlite3_free(ErrMsg);
+	  sqlite3_close(avoidRickshawDb);
+
+	  return SQLITE_ERROR;
+   }
+
+   sqlite3_close(avoidRickshawDb);
+
+   return SQLITE_OK;
+}
+
+/**
+ * @brief Deletes Table
+ */
+int deleteMsgAll()
+{
+	if(opendb() != SQLITE_OK) /*create database instance*/
+		return SQLITE_ERROR;
+
+   char sql[BUFLEN];
+   snprintf(sql, BUFLEN, "DROP TABLE IF EXISTS infoTable;");
+
+   int counter = 0, ret = 0;
+   char *ErrMsg;
+
+   ret = sqlite3_exec(avoidRickshawDb, sql, deletecb, &counter, &ErrMsg);
+	if (ret != SQLITE_OK)
+	{
+	   dlog_print(DLOG_DEBUG, LOG_TAG, "Delete Error! [%s]", sqlite3_errmsg(avoidRickshawDb));
+	   sqlite3_free(ErrMsg);
+	   sqlite3_close(avoidRickshawDb);
+
+	   return SQLITE_ERROR;
+	}
+
+	sqlite3_close(avoidRickshawDb);
+
+   return SQLITE_OK;
+}
+
+/**
+ * @brief Callback function for obtaining counted value returned by sql query.
+ */
+static int row_count_cb(void *data, int argc, char **argv, char **azColName)
+{
+	g_row_count = atoi(argv[0]); /*number of rows*/
+
+	return 0;
+}
+
+/**
+ * @brief Counts total number of rows present in specified database table.
+ */
+int getTotalMsgItemsCount(int* num_of_rows)
+{
+	if(opendb() != SQLITE_OK) /*create database instance*/
+		return SQLITE_ERROR;
+
+   char *sql = "SELECT COUNT(*) FROM infoTable";
+   char *ErrMsg;
+
+   int ret = 0;
+
+   ret = sqlite3_exec(avoidRickshawDb, sql, row_count_cb, NULL, &ErrMsg);
+	if (ret != SQLITE_OK)
+	{
+	    sqlite3_free(ErrMsg);
+	    sqlite3_close(avoidRickshawDb);
+
+	    return SQLITE_ERROR;
+	}
+
+	sqlite3_close(avoidRickshawDb);
+
+	*num_of_rows = g_row_count;
+	g_row_count = 0;
+   return SQLITE_OK;
+}
+
+
+int countLeapDays(int m, int y){
+    if (m <= 2)
+        y--;
+
+    return y/4 - y/100 + y/400;
+}
+
+void getNumericDate(int *d, int *m, int *y, const char *day){
+    char *temp = (char *) calloc(1, 5);
+
+    strncpy(temp, &day[0], 4);
+    *y = atoi(temp);
+    temp = NULL;
+
+    temp = calloc(1, 3);
+    strncpy(temp, &day[5], 2);
+    *m = atoi(temp);
+    temp = NULL;
+
+    temp = calloc(1, 3);
+    strncpy(temp, &day[8], 2);
+    *d = atoi(temp);
+
+    temp = NULL;
+    free(temp);
+}
+
+int getDays(const char* day1, const char* day2){
+    int daysOfMonth[12] = {31, 28, 31, 30, 31, 30,
+                           31, 31, 30, 31, 30, 31};
+    int n1, d1, m1, y1;
+    int n2, d2, m2, y2;
+
+    getNumericDate(&d1, &m1, &y1, day1);
+    getNumericDate(&d2, &m2, &y2, day2);
+
+    n1 = y1*365 + d1;
+    n2 = y2*365 + d2;
+
+    int i;
+    for (i=0; i<m1 - 1; i++)
+        n1 += daysOfMonth[i];
+
+    for (i=0; i<m2 - 1; i++)
+        n2 += daysOfMonth[i];
+
+    n1 += countLeapDays(m1, y1);
+    n2 += countLeapDays(m2, y2);
+
+    return (n2 - n1);
+}
+
+// Function for inserting dummy values in DB
+void populateDb(void)
+{
+	if(opendb() != SQLITE_OK) /*create database instance*/
+	{
+		dlog_print(DLOG_ERROR, LOG_TAG, "Failed to create database instance.");
+		return;
+	}
+
+	float distance;
+	int steps;
+	float calories;
+	int fare;
+	float tempDistance;
+	srand(time(NULL));
+
+	char sqlbuff[BUFLEN];
+	char *ErrMsg;
+	int ret;
+	char dateTime[14];
+
+	for(int i = 1; i <= 31; i++){
+		if (i == 25 || i == 27 || i == 28 || i == 15) {
+			continue;
+		}
+//		if (i >= 25 && i <= 30) {
+//			continue;
+//		}
+//		if (i >= 25 && i <= 31) {
+//			continue;
+//		}
+//		if (i >= 26 && i <= 31) {
+//			continue;
+//		}
+
+		sprintf(dateTime, "'2016-07-%02d'", i);
+
+		distance = (float) ((rand() % 1800) + 200.1); //Distance between 0.2 km and 2 km
+		tempDistance = distance / 1000;
+		steps = (int) distance * 2;
+		calories = 0.0215 * tempDistance * tempDistance * tempDistance
+				- 0.1765 * tempDistance * tempDistance + 0.8710 * tempDistance
+				+ 1.4577 * 70 * (tempDistance/3);
+		fare = (int) (0.015 * distance);
+
+		/*prepare query for INSERT operation*/
+		snprintf(sqlbuff, BUFLEN, "INSERT INTO "\
+				TABLE_NAME" ("\
+				COL_DATE"," \
+				COL_DIST"," \
+				COL_FARE"," \
+				COL_CAL"," \
+				COL_STP")"\
+				" VALUES(%s, %f, %d, %f, %d);",
+						dateTime, distance, fare, calories, steps);
+
+		ret = sqlite3_exec(avoidRickshawDb, sqlbuff, insertcb, 0, &ErrMsg); /*execute query*/
+		if (ret != SQLITE_OK)
+		{
+			dlog_print(DLOG_ERROR, LOG_TAG, "PopulateDb: Insertion Error! [%s]", sqlite3_errmsg(avoidRickshawDb));
+			sqlite3_free(ErrMsg);
+			sqlite3_close(avoidRickshawDb); /*close db instance for failed case*/
+			return;
+		}
+	}
+
+	for(int i = 1; i < 2; i++){
+
+		sprintf(dateTime, "'2016-08-%02d'", i);
+
+		distance = (float) ((rand() % 1800) + 200.1); //Distance between 0.2 km and 2 km
+		tempDistance = distance / 1000;
+		steps = (int) distance * 2;
+		calories = 0.0215 * tempDistance * tempDistance * tempDistance
+				- 0.1765 * tempDistance * tempDistance + 0.8710 * tempDistance
+				+ 1.4577 * 70 * (tempDistance/3);
+		fare = (int) (0.015 * distance);
+
+		/*prepare query for INSERT operation*/
+		snprintf(sqlbuff, BUFLEN, "INSERT INTO "\
+				TABLE_NAME" ("\
+				COL_DATE"," \
+				COL_DIST"," \
+				COL_FARE"," \
+				COL_CAL"," \
+				COL_STP")"\
+				" VALUES(%s, %f, %d, %f, %d);",
+						dateTime, distance, fare, calories, steps);
+
+		ret = sqlite3_exec(avoidRickshawDb, sqlbuff, insertcb, 0, &ErrMsg); /*execute query*/
+		if (ret != SQLITE_OK)
+		{
+			dlog_print(DLOG_ERROR, LOG_TAG, "PopulateDb: Insertion Error! [%s]", sqlite3_errmsg(avoidRickshawDb));
+			sqlite3_free(ErrMsg);
+			sqlite3_close(avoidRickshawDb); /*close db instance for failed case*/
+			return;
+		}
+	}
+
+	sqlite3_close(avoidRickshawDb); /*close db instance for success case*/
 }
