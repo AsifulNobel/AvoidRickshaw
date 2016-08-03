@@ -650,9 +650,9 @@ void populateDb(void)
 	char dateTime[14];
 
 	for(int i = 1; i <= 31; i++){
-//		if (i == 25 || i == 27 || i == 28 || i == 15 | i == 4) {
-//			continue;
-//		}
+		if (i == 25 || i == 27 || i == 28 || i == 15) {
+			continue;
+		}
 //		if (i >= 25 && i <= 30) {
 //			continue;
 //		}
@@ -665,13 +665,13 @@ void populateDb(void)
 
 		sprintf(dateTime, "'2016-07-%02d'", i);
 
-		distance = (float) ((rand() % 19000) + 1001.0); //Distance between 1 km and 20 km
+		distance = (float) ((rand() % 1800) + 200.1); //Distance between 0.2 km and 2 km
 		tempDistance = distance / 1000;
 		steps = (int) distance * 2;
 		calories = 0.0215 * tempDistance * tempDistance * tempDistance
 				- 0.1765 * tempDistance * tempDistance + 0.8710 * tempDistance
 				+ 1.4577 * 70 * (tempDistance/3);
-		fare = (int) (10 + (tempDistance - 1.0) * 5);
+		fare = (int) (0.015 * distance);
 
 		/*prepare query for INSERT operation*/
 		snprintf(sqlbuff, BUFLEN, "INSERT INTO "\
@@ -694,29 +694,17 @@ void populateDb(void)
 		}
 	}
 
-	for(int i = 1; i <= 3; i++){
-//		if (i == 25 || i == 27 || i == 28 || i == 15 | i == 4) {
-//			continue;
-//		}
-//		if (i >= 25 && i <= 30) {
-//			continue;
-//		}
-//		if (i >= 25 && i <= 31) {
-//			continue;
-//		}
-//		if (i >= 26 && i <= 31) {
-//			continue;
-//		}
+	for(int i = 1; i < 2; i++){
 
 		sprintf(dateTime, "'2016-08-%02d'", i);
 
-		distance = (float) ((rand() % 19000) + 1001.0); //Distance between 1 km and 20 km
+		distance = (float) ((rand() % 1800) + 200.1); //Distance between 0.2 km and 2 km
 		tempDistance = distance / 1000;
 		steps = (int) distance * 2;
 		calories = 0.0215 * tempDistance * tempDistance * tempDistance
 				- 0.1765 * tempDistance * tempDistance + 0.8710 * tempDistance
 				+ 1.4577 * 70 * (tempDistance/3);
-		fare = (int) (10 + (tempDistance - 1.0) * 5);
+		fare = (int) (0.015 * distance);
 
 		/*prepare query for INSERT operation*/
 		snprintf(sqlbuff, BUFLEN, "INSERT INTO "\
