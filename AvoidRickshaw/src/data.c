@@ -220,7 +220,23 @@ bool data_gps_enabled_get(void)
 
 /**
  * @brief Function invoked after updating total distance to count Rickshaw fare. After calculating
- * fare, total fare is updated in view.
+ *  This function calculates fare of the rickshaw
+
+ *Function parameter
+
+ *distance(double) - it is the distance walked in Kilometer
+ *baseFare (int) - holds the base fare of rickshaw
+ *farePerUnitDistance - holds the per unit distance fare after covering the base distance
+
+ *Return value -
+ Rickshaw fare
+
+ **farePerUnitDistance is now currently a constant attribute
+ **It uses a plus method
+
+ References -
+
+ Max Plus Methods for NonLinear Control and Estimation
  * @return Calculated fare.
  */
 int count_fare(void) {
@@ -583,10 +599,32 @@ void data_show_db(void) {
 	dlog_print(DLOG_DEBUG, LOG_TAG, "'Show History' button clicked!");
 }
 
-/*
+/**
  * @brief Calculates burnt calories while walking or running.
  *
- */
+ *This function calculates calories burned;
+
+ *Function parameter
+
+ *distance(double) - it is the distance walked in Kilometer
+ *time (double) - total amount of time walked in Hour
+ *weight (double) - body weight in KG ;
+
+ *Return Value -
+ *calories burned in the process
+
+ **This function thinks that Walking surface grade is 0%
+
+ *References -
+
+ *Margaria R, Cerretelli P, Aghemo P, Sassi G. Energy cost of running. J Appl Physiol. 1963 Mar;18:367-70.
+
+ *Margaria, R., 1938. Sulla fisiologia, e specialmente sul consumo energetico, della marcia e della corsa a varie velocita ed inclinazioni del terreno. Atti Accad. Naz. Lincei Classe Sci. Fis. Mat. Nat. Serie VI 7, 299–368.
+
+ *American College of Sports Medecine: ACSM's Metabolic Calculations Handbook, 2007, Baltimore, MD. Also available online at: ACSM Metabolic Equations
+
+**/
+
 static void calorieBurner()
 {
 	double tempDistance = s_info.total_distance / 1000;
