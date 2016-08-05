@@ -1,0 +1,4 @@
+set sysroot /home/nobel/tizen-sdk/tools/smart-build-interface/../../platforms/tizen-2.4/mobile/rootstraps/mobile-2.4-device.core
+set debug-file-directory /home/nobel/tizen-sdk/tools/smart-build-interface/../../platforms/tizen-2.4/mobile/rootstraps/mobile-2.4-device.core/usr/lib/debug
+set solib-search-path /home/nobel/DevBox/tizen_workspace/AvoidRickshaw/Debug
+dir /home/nobel/tizen-sdk/tools/smart-build-interface/../../platforms/tizen-2.4/mobile/rootstraps/mobile-2.4-device.core/usr/src/debug

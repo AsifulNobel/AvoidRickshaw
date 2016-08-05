@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<manifest xmlns="http://tizen.org/ns/packages" api-version="2.4" package="org.example.avoidrickshaw" version="1.0.0">
+    <profile name="mobile"/>
+    <ui-application appid="org.example.avoidrickshaw" exec="avoidrickshaw" multiple="false" nodisplay="false" taskmanage="true" type="capp">
+        <label>avoidrickshaw</label>
+        <icon>avoidrickshaw.png</icon>
+    </ui-application>
+    <privileges>
+        <privilege>http://tizen.org/privilege/location</privilege>
+    </privileges>
+    <feature name="http://tizen.org/feature/sensor.accelerometer">true</feature>
+    <feature name="http://tizen.org/feature/location.gps">true</feature>
+    <feature name="http://tizen.org/feature/sensor.activity_recognition">true</feature>
+    <feature name="http://tizen.org/feature/location">true</feature>
+</manifest>
