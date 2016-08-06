@@ -1,4 +1,4 @@
-[[https://github.com/AsifulNobel/AvoidRickshaw/blob/master/resources/AvoidRickshawAppIcon.png|alt=octocat]]
+![Project Icon](https://github.com/AsifulNobel/AvoidRickshaw/blob/master/resources/AvoidRickshawAppIconSmall.png)
 
 # AvoidRickshaw
 
