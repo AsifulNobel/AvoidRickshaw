@@ -552,9 +552,9 @@ void _data_save_db(void) {
 
 	if (!ret){
 		// If starting database for first time, populate database for App Demo.
-		if (num_rows == 0) {
+		/*if (num_rows == 0) {
 			populateDb();
-		}
+		}*/
 
 		if(num_rows > 0) {
 			msgdata->distance += (float) s_info.total_distance;
@@ -619,7 +619,7 @@ void data_show_db(void) {
 
  *Margaria R, Cerretelli P, Aghemo P, Sassi G. Energy cost of running. J Appl Physiol. 1963 Mar;18:367-70.
 
- *Margaria, R., 1938. Sulla fisiologia, e specialmente sul consumo energetico, della marcia e della corsa a varie velocita ed inclinazioni del terreno. Atti Accad. Naz. Lincei Classe Sci. Fis. Mat. Nat. Serie VI 7, 299–368.
+ *Margaria, R., 1938. Sulla fisiologia, e specialmente sul consumo energetico, della marcia e della corsa a varie velocita ed inclinazioni del terreno. Atti Accad. Naz. Lincei Classe Sci. Fis. Mat. Nat. Serie VI 7, 299Â–368.
 
  *American College of Sports Medecine: ACSM's Metabolic Calculations Handbook, 2007, Baltimore, MD. Also available online at: ACSM Metabolic Equations
 
